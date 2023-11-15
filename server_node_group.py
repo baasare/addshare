@@ -5,15 +5,15 @@ import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
 
-from helpers.utils import check_port, terminate_process_on_port, generate_groups
+from helpers.utils import check_port, terminate_process_on_port
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
 
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
 from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, ADDRESS
-from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING, GROUPINGS
+from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 
 
-class ServerSubGroup:
+class ServerNodeSubGroup:
     def __init__(self, server_id, address, port, max_nodes, client_type, dataset, indexes, x_train, y_train, x_test,
                  y_test):
         self.id = server_id

@@ -253,7 +253,7 @@ if __name__ == "__main__":
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='addshare',
+        client_type='addshare_server_grouping',
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         node = AddShareNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare",
+            client_type="addshare_server_grouping",
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

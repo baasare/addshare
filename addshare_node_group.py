@@ -1,4 +1,5 @@
 import random
+import sys
 import time
 import uvicorn
 import threading
@@ -6,25 +7,25 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from fastapi import FastAPI
-from server_node_group import ServerSubGroup
+from server_node_group import ServerNodeSubGroup
 from timeit import default_timer as timer
 
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
-from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION, DATASET, \
-    GROUPINGS
+from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION
 from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRET_SHARING, MESSAGE_TRAINING_COMPLETED
 from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE, SERVER_ID
 
 
 class AddShareNode:
 
-    def __init__(self, address, port, client_type, dataset, x_train, y_train, x_test, y_test):
+    def __init__(self, address, port, client_type, group_size, dataset, x_train, y_train, x_test, y_test):
         self.app = FastAPI()
         self.port = port
         self.address = address
 
         self.dataset = dataset
+        self.group_size = group_size
         self.client_type = client_type
 
         self.model = None
@@ -84,7 +85,7 @@ class AddShareNode:
     def start_training(self, data):
 
         all_nodes = [port for port in data["nodes"] if port != self.port]
-        self.fl_nodes = random.sample(all_nodes, GROUPINGS - 1)
+        self.fl_nodes = random.sample(all_nodes, self.group_size - 1)
         self.round += 1
         self.model = tf.keras.models.model_from_json(data["model_architecture"])
         self.model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
@@ -226,13 +227,16 @@ class AddShareNode:
 
     def disconnect(self):
         pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}/{self.dataset}/client_{self.port - CLIENT_PORT}.csv",
+            f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}/client_{self.port - CLIENT_PORT}.csv",
             index=False,
             header=True
         )
 
 
 if __name__ == "__main__":
+
+    DATASET = str(sys.argv[1])
+    GROUPINGS = int(sys.argv[2])
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
@@ -241,12 +245,12 @@ if __name__ == "__main__":
     ports = []
     threads = []
 
-    server = ServerSubGroup(
+    server = ServerNodeSubGroup(
         server_id=SERVER_ID,
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='addshare',
+        client_type='addshare_node_grouping',
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -269,7 +273,8 @@ if __name__ == "__main__":
         node = AddShareNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare",
+            client_type="addshare_node_grouping",
+            group_size=GROUPINGS,
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,
