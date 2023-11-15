@@ -383,8 +383,8 @@ def perform_exchange(n, client_shares):
 
 
 def combine_csv_files(experiment, dataset):
-    parent_dir = os.path.dirname((os.path.dirname(os.getcwd())))
-    folder_path = parent_dir + f'/resources/results/numerical/{experiment}/{dataset}'
+    parent_dir = os.path.dirname(os.getcwd())
+    folder_path = parent_dir + f'/thesis/resources/results/{experiment}/{dataset}'
 
     # List all files in the folder
     files = os.listdir(folder_path)
@@ -494,3 +494,9 @@ def iid_balanced(client_number, train_size, dataset):
                      int(i * train_size / client_number):int((i + 1) * train_size / client_number)]
 
     np.savetxt(f"resources/dataset/{dataset}/iid_balanced.txt", clients)
+
+
+# if __name__ == "__main__":
+#     combine_csv_files("addshare_node_grouping_3", "cifar-10")
+
+    # / Users / atiemoasare / Projects / thesis / resources / results / addshare_node_grouping_3 / cifar - 10

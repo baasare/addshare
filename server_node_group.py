@@ -5,7 +5,7 @@ import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
 
-from helpers.utils import check_port, terminate_process_on_port
+from helpers.utils import check_port, terminate_process_on_port, combine_csv_files
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
 
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
@@ -14,7 +14,7 @@ from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_S
 
 
 class ServerNodeSubGroup:
-    def __init__(self, server_id, address, port, max_nodes, client_type, dataset, indexes, x_train, y_train, x_test,
+    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
                  y_test):
         self.id = server_id
         self.app = FastAPI()
@@ -43,6 +43,7 @@ class ServerNodeSubGroup:
         self.training_completed_count = 0
         self.sharing_completed_count = 0
         self.client_type = client_type
+        self.group_size = group_size
         self.dataset = dataset
         self.record = list()
         self.current_accuracy = 0
@@ -159,12 +160,13 @@ class ServerNodeSubGroup:
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
         pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}/{self.dataset}/server.csv",
+            f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}/server.csv",
             index=False,
             header=True
         )
 
         self.send_to_node(data)
+        combine_csv_files(f"{self.client_type}", f"{self.dataset}")
         terminate_process_on_port(self.port)
 
     def start_assembly(self):

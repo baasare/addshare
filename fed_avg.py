@@ -1,3 +1,4 @@
+import sys
 import time
 import uvicorn
 import threading
@@ -10,7 +11,7 @@ from helpers.utils import check_port, terminate_process_on_port, decode_layer, T
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, encode_layer
 
 from helpers.constants import CLIENT_PORT, SERVER_ID, NODES, MESSAGE_END_SESSION, EPOCHS
-from helpers.constants import SERVER_PORT, MESSAGE_START_TRAINING, DATASET, MESSAGE_FL_UPDATE, ADDRESS
+from helpers.constants import SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_FL_UPDATE, ADDRESS
 
 
 class FedAvgNode:
@@ -110,6 +111,8 @@ class FedAvgNode:
 
 if __name__ == "__main__":
 
+    DATASET = str(sys.argv[1])
+
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
 
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='vanilla',
+        client_type='fed_avg',
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -145,7 +148,7 @@ if __name__ == "__main__":
         node = FedAvgNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="vanilla",
+            client_type="fed_avg",
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

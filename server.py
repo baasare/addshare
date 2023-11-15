@@ -5,8 +5,9 @@ import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
 
-from helpers.utils import check_port, terminate_process_on_port, get_dataset
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5
+from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_csv_files
+
 from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
 from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, ADDRESS
@@ -164,6 +165,7 @@ class Server:
         )
 
         self.send_to_node(data)
+        combine_csv_files(f"{self.client_type}", f"{self.dataset}")
         terminate_process_on_port(self.port)
 
     def start_assembly(self, port):

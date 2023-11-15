@@ -251,6 +251,7 @@ if __name__ == "__main__":
         port=SERVER_PORT,
         max_nodes=NODES,
         client_type='addshare_node_grouping',
+        group_size=GROUPINGS,
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
