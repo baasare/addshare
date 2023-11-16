@@ -3,8 +3,9 @@
 # SLURM script for a job on Compute Canada cluster.
 # ---------------------------------------------------------------------
 #SBATCH --account=def-pbranco
-#SBATCH --nodes=4
-#SBATCH --cpus-per-node=8
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
 #SBATCH --mem=20G
 #SBATCH --time=1-0:0
 
