@@ -14,6 +14,7 @@
 
 #SBATCH --job-name=vanilla-batch
 #SBATCH --output=outputs/output_vanilla-%j.out
+#SBATCH --error=errors/error_vanilla-%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"
