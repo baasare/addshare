@@ -112,6 +112,7 @@ class FedAvgNode:
 if __name__ == "__main__":
 
     DATASET = str(sys.argv[1])
+    print(f"DATASET: {DATASET}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
