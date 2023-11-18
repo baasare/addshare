@@ -68,7 +68,7 @@ def terminate_process_on_port(port):
 
 def fetch_index(dataset):
     current_dir = os.path.dirname(os.getcwd())
-    path = current_dir + f'/resources/dataset/{dataset}/iid_balanced.txt'
+    path = current_dir + f'/thesis/resources/dataset/{dataset}/iid_balanced.txt'
     clients = np.loadtxt(path, dtype=object)
     clients = clients.astype(np.float64)
     clients = clients.astype(np.int64)

@@ -6,7 +6,7 @@
 #SBATCH --nodes=2
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=20G
-#SBATCH --time=0-05:00:00
+#SBATCH --time=0-10:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca
