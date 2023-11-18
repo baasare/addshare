@@ -1,8 +1,0 @@
-cryptography
-fastapi
-numpy
-pandas
-Pillow
-scipy
-tensorflow
-uvicorn
