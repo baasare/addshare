@@ -84,8 +84,8 @@ def fetch_dataset(dataset):
         return tf.keras.datasets.fashion_mnist.load_data()
     else:
         current_dir = os.path.dirname(os.getcwd())
-        train_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/train_32x32.mat')
-        test_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/test_32x32.mat')
+        train_data = sio.loadmat(current_dir + f'/thesis/resources/dataset/svhn/train_32x32.mat')
+        test_data = sio.loadmat(current_dir + f'/thesis/resources/dataset/svhn/test_32x32.mat')
         x_train = np.array(train_data['X'])
         y_train = np.array(train_data['y'])
 
