@@ -8,13 +8,13 @@ from timeit import default_timer as timer
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
 from helpers.utils import check_port, terminate_process_on_port, generate_groups, combine_csv_files
 
+from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
 from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, ADDRESS
-from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING, GROUPINGS
 
 
 class ServerSubGroup:
-    def __init__(self, server_id, address, port, max_nodes, client_type, dataset, indexes, x_train, y_train, x_test,
+    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
                  y_test):
         self.id = server_id
         self.app = FastAPI()
@@ -43,6 +43,7 @@ class ServerSubGroup:
         self.round = 0
         self.training_completed_count = 0
         self.client_type = client_type
+        self.group_size = group_size
         self.dataset = dataset
         self.groupings = list()
         self.record = list()
@@ -105,7 +106,7 @@ class ServerSubGroup:
         print(f'Starting round ({self.round + 1})')
 
         temp_start_time = timer()
-        self.groupings = generate_groups(self.nodes, GROUPINGS)
+        self.groupings = generate_groups(self.nodes, self.group_size)
         self.grouping_time = temp_start_time - timer()
 
         self.start_time = timer()
@@ -175,7 +176,7 @@ class ServerSubGroup:
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
         pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}/{self.dataset}/server.csv",
+            f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}/server.csv",
             index=False,
             header=True
         )

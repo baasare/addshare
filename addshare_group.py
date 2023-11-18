@@ -19,13 +19,14 @@ from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHAR
 
 class AddShareNode:
 
-    def __init__(self, address, port, client_type, dataset, x_train, y_train, x_test, y_test):
+    def __init__(self, address, port, client_type, group_size, dataset, x_train, y_train, x_test, y_test):
         self.app = FastAPI()
         self.port = port
         self.address = address
 
         self.dataset = dataset
         self.client_type = client_type
+        self.group_size = group_size
 
         self.model = None
         self.epochs = EPOCHS
@@ -235,7 +236,7 @@ class AddShareNode:
 
     def disconnect(self):
         pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}/{self.dataset}/client_{self.port - CLIENT_PORT}.csv",
+            f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}/client_{self.port - CLIENT_PORT}.csv",
             index=False,
             header=True
         )
@@ -244,6 +245,7 @@ class AddShareNode:
 if __name__ == "__main__":
 
     DATASET = str(sys.argv[1])
+    GROUPINGS = int(sys.argv[2])
     print(f"DATASET: {DATASET}")
 
     indexes = fetch_index(DATASET)
@@ -259,6 +261,7 @@ if __name__ == "__main__":
         port=SERVER_PORT,
         max_nodes=NODES,
         client_type='addshare_server_grouping',
+        group_size=GROUPINGS,
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -282,6 +285,7 @@ if __name__ == "__main__":
             address=ADDRESS,
             port=CLIENT_PORT + i,
             client_type="addshare_server_grouping",
+            group_size=GROUPINGS,
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,
