@@ -68,7 +68,7 @@ def terminate_process_on_port(port):
 
 def fetch_index(dataset):
     current_dir = os.path.dirname(os.getcwd())
-    path = current_dir + f'/thesis/resources/dataset/{dataset}/iid_balanced.txt'
+    path = current_dir + f'/resources/dataset/{dataset}/iid_balanced.txt'
     clients = np.loadtxt(path, dtype=object)
     clients = clients.astype(np.float64)
     clients = clients.astype(np.int64)
@@ -84,8 +84,8 @@ def fetch_dataset(dataset):
         return tf.keras.datasets.fashion_mnist.load_data()
     else:
         current_dir = os.path.dirname(os.getcwd())
-        train_data = sio.loadmat(current_dir + f'/thesis/resources/dataset/svhn/train_32x32.mat')
-        test_data = sio.loadmat(current_dir + f'/thesis/resources/dataset/svhn/test_32x32.mat')
+        train_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/train_32x32.mat')
+        test_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/test_32x32.mat')
         x_train = np.array(train_data['X'])
         y_train = np.array(train_data['y'])
 
@@ -384,7 +384,7 @@ def perform_exchange(n, client_shares):
 
 def combine_csv_files(experiment, dataset):
     parent_dir = os.path.dirname(os.getcwd())
-    folder_path = parent_dir + f'/thesis/resources/results/{experiment}/{dataset}'
+    folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
     # List all files in the folder
     files = os.listdir(folder_path)
