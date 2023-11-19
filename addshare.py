@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import uvicorn
@@ -233,11 +234,11 @@ class AddShareNode:
         self.disconnect()
 
     def disconnect(self):
-        pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}/{self.dataset}/client_{self.port - CLIENT_PORT}.csv",
-            index=False,
-            header=True
-        )
+        output_folder = f"resources/results/{self.client_type}/{self.dataset}"
+        os.makedirs(output_folder, exist_ok=True)
+        csv_filename = f'client_{self.port - CLIENT_PORT}.csv'
+        csv_path = os.path.join(output_folder, csv_filename)
+        pd.DataFrame(self.record).to_csv(csv_path, index=False, header=True)
 
 
 if __name__ == "__main__":
