@@ -247,7 +247,7 @@ if __name__ == "__main__":
 
     DATASET = str(sys.argv[1])
     GROUPINGS = int(sys.argv[2])
-    print(f"DATASET: {DATASET}")
+    print(f"DATASET: {DATASET}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)

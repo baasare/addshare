@@ -12,9 +12,9 @@
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare
-#SBATCH --output=outputs/addshare_output_-%j.out
-#SBATCH --error=errors/addshare_error_%j.out
+#SBATCH --job-name=addshare-server-group-10-batch
+#SBATCH --output=outputs/output_addshare_server_group_10-%j.out
+#SBATCH --error=errors/error_addshare_server_group_10-%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"
@@ -27,9 +27,9 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare.py cifar-10
-python ~/projects/def-pbranco/baasare/thesis/addshare.py f-mnist
-python ~/projects/def-pbranco/baasare/thesis/addshare.py mnist
-python ~/projects/def-pbranco/baasare/thesis/addshare.py svhn
+python ~/projects/def-pbranco/baasare/thesis/addshare_group.py cifar-10 10
+python ~/projects/def-pbranco/baasare/thesis/addshare_group.py f-mnist 10
+python ~/projects/def-pbranco/baasare/thesis/addshare_group.py mnist 10
+python ~/projects/def-pbranco/baasare/thesis/addshare_group.py svhn 10
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: $(date)"
