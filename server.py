@@ -160,7 +160,8 @@ class Server:
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
 
-        output_folder = f"resources/results/{self.client_type}/{self.dataset}"
+        current_dir = os.path.dirname(os.getcwd())
+        output_folder = current_dir + f"/resources/results/{self.client_type}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = 'server.csv'
         csv_path = os.path.join(output_folder, csv_filename)

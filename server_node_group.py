@@ -1,3 +1,4 @@
+import os
 import time
 import uvicorn
 import pandas as pd
@@ -159,11 +160,12 @@ class ServerNodeSubGroup:
             "message": MESSAGE_END_SESSION,
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
-        pd.DataFrame(self.record).to_csv(
-            f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}/server.csv",
-            index=False,
-            header=True
-        )
+        current_dir = os.path.dirname(os.getcwd())
+        output_folder = current_dir + f"resources/results/{self.client_type}_{self.group_size}/{self.dataset}"
+        os.makedirs(output_folder, exist_ok=True)
+        csv_filename = 'server.csv'
+        csv_path = os.path.join(output_folder, csv_filename)
+        pd.DataFrame(self.record).to_csv(csv_path, index=False, header=True)
 
         self.send_to_node(data)
         combine_csv_files(f"{self.client_type}", f"{self.dataset}")
