@@ -27,6 +27,7 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
+python ~/projects/def-pbranco/baasare/thesis/fedavg.py cifar-10
 python ~/projects/def-pbranco/baasare/thesis/fedavg.py f-mnist
 python ~/projects/def-pbranco/baasare/thesis/fedavg.py mnist
 python ~/projects/def-pbranco/baasare/thesis/fedavg.py svhn

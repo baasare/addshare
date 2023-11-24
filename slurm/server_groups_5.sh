@@ -13,8 +13,8 @@
 #SBATCH --mail-type=ALL
 
 #SBATCH --job-name=addshare-server-group-5-batch
-#SBATCH --output=outputs/output_addshare_server_group_5-%j.out
-#SBATCH --error=errors/error_addshare_server_group_5-%j.out
+#SBATCH --output=outputs/output_addshare_server_group_5_%j.out
+#SBATCH --error=errors/error_addshare_server_group_5_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"
@@ -27,7 +27,6 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare_server_group.py f-mnist 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_server_group.py mnist 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_server_group.py svhn 5
 # ---------------------------------------------------------------------

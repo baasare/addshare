@@ -236,7 +236,7 @@ class AddShareNode:
         self.disconnect()
 
     def disconnect(self):
-        current_dir = os.path.dirname(os.getcwd())
+        current_dir = os.path.dirname(os.path.realpath(__file__))
         output_folder = current_dir + f"/resources/results/{self.client_type}_{self.group_size}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = f'client_{self.port - CLIENT_PORT}.csv'

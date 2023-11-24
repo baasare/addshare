@@ -6,15 +6,15 @@
 #SBATCH --nodes=5
 #SBATCH --cpus-per-task=32
 #SBATCH --mem=35G
-#SBATCH --time=0-00:20:00
+#SBATCH --time=0-12:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare_plus
-#SBATCH --output=outputs/addshare_plus_output_-%j.out
-#SBATCH --error=errors/addshare_plus_error_%j.out
+#SBATCH --job-name=addshare_plus_magnitude
+#SBATCH --output=outputs/addshare_plus_magnitude_output_%j.out
+#SBATCH --error=errors/addshare_plus_magnitude_error_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"
@@ -27,6 +27,9 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare_plus.py
+python ~/projects/def-pbranco/baasare/thesis/addshare_plus.py cifar-10 magnitude
+python ~/projects/def-pbranco/baasare/thesis/addshare_plus.py f-mnist magnitude
+python ~/projects/def-pbranco/baasare/thesis/addshare_plus.py mnist magnitude
+python ~/projects/def-pbranco/baasare/thesis/addshare_plus.py svhn magnitude
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: $(date)"

@@ -21,8 +21,8 @@ MAGNITUDE = "magnitude"
 OBD = "OBT"
 L2R = "L2R"
 
-NODES = 3
-ROUNDS = 2
+NODES = 50
+ROUNDS = 10
 EPOCHS = 2
 GROUPINGS = 3
 DATASET = 'mnist'

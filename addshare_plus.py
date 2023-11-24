@@ -14,8 +14,8 @@ from timeit import default_timer as timer
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
 
+from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE
 from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION, SERVER_ID
-from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE, RANDOM
 from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRET_SHARING, MESSAGE_TRAINING_COMPLETED
 
 
@@ -267,10 +267,9 @@ class AddSharePlusNode:
 
 if __name__ == "__main__":
 
-    # DATASET = str(sys.argv[1])
-    SELECTION_TYPE = RANDOM
-    DATASET = 'mnist'
-    print(f"DATASET: {DATASET}")
+    DATASET = str(sys.argv[1])
+    SELECTION_TYPE = str(sys.argv[2])
+    print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
