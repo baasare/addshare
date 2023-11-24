@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import uvicorn
@@ -6,16 +7,15 @@ import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
 
-from helpers.utils import check_port, terminate_process_on_port, combine_csv_files
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, magnitude_weight_selection
+from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_find_mean, random_weight_selection
 
-from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
-from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, ADDRESS
-from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
+from helpers import constants
 
 
-class ServerNodeSubGroup:
-    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
+class ServerAddsharePlus:
+    def __init__(self, server_id, address, port, max_nodes, client_type, pruning_type, dataset, indexes, x_train,
+                 y_train, x_test,
                  y_test):
         self.id = server_id
         self.app = FastAPI()
@@ -39,13 +39,13 @@ class ServerNodeSubGroup:
         )
 
         self.global_model = get_lenet5(dataset)
-        self.max_rounds = ROUNDS
+        self.max_rounds = constants.ROUNDS
         self.round = 0
         self.training_completed_count = 0
-        self.sharing_completed_count = 0
         self.client_type = client_type
-        self.group_size = group_size
+        self.pruning_type = pruning_type
         self.dataset = dataset
+
         self.record = list()
         self.current_accuracy = 0
         self.threshold = 0
@@ -54,14 +54,14 @@ class ServerNodeSubGroup:
         def message(data: dict):
             print(f"SERVER RECEIVED: {data['message']} from PORT: {data['port']}")
 
-            if data["message"] == MESSAGE_FL_UPDATE:
+            if data["message"] == constants.MESSAGE_FL_UPDATE:
                 self.fl_update(data["port"], data["model_weights"])
 
-            elif data["message"] == MESSAGE_TRAINING_COMPLETED:
+            elif data["message"] == constants.MESSAGE_TRAINING_COMPLETED:
                 self.start_secret_sharing()
 
-            elif data["message"] == MESSAGE_SHARING_COMPLETE:
-                self.start_assembly()
+            elif data["message"] == constants.MESSAGE_SHARING_COMPLETE:
+                self.start_assembly(data["port"])
 
             return {"status": "ok"}
 
@@ -76,14 +76,14 @@ class ServerNodeSubGroup:
             for port in self.nodes:
                 post_with_retries(
                     data=data,
-                    url=f"http://{ADDRESS}:{port}/message",
+                    url=f"http://{constants.ADDRESS}:{port}/message",
                     max_retries=3
                 )
                 time.sleep(2)
         else:
             post_with_retries(
                 data=data,
-                url=f"http://{ADDRESS}:{port}/message",
+                url=f"http://{constants.ADDRESS}:{port}/message",
                 max_retries=3
             )
 
@@ -93,16 +93,27 @@ class ServerNodeSubGroup:
 
         print(f'Starting round ({self.round + 1})')
 
+        indexes = {}
         self.start_time = timer()
         self.pending_nodes = self.nodes.copy()
         for layer in self.global_model.layers:
             if layer.trainable_weights:
+                if self.pruning_type == constants.RANDOM:
+                    kernel_indices = random_weight_selection(layer.weights[0], constants.THRESHOLD)
+                    bias_indices = random_weight_selection(layer.weights[1], constants.THRESHOLD)
+                    indexes[layer.name] = [kernel_indices.tolist(), bias_indices.tolist()]
+                elif self.pruning_type == constants.MAGNITUDE:
+                    kernel_indices = magnitude_weight_selection(layer.weights[0], constants.THRESHOLD)
+                    bias_indices = magnitude_weight_selection(layer.weights[1], constants.THRESHOLD)
+                    indexes[layer.name] = [kernel_indices.tolist(), bias_indices.tolist()]
+
                 self.average_weights[layer.name] = [[], []]
 
         data = {
             "port": "SERVER",
             "nodes": self.nodes,
-            "message": MESSAGE_START_TRAINING,
+            "message": constants.MESSAGE_START_TRAINING,
+            "indexes": json.dumps(indexes),
             "model_architecture": self.global_model.to_json(),
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
@@ -157,29 +168,27 @@ class ServerNodeSubGroup:
         print("SESSION ENDED")
         data = {
             "port": "SERVER",
-            "message": MESSAGE_END_SESSION,
+            "message": constants.MESSAGE_END_SESSION,
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
-        current_dir = os.path.dirname(os.getcwd())
-        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.group_size}/{self.dataset}"
+
+        current_dir = os.path.abspath(os.getcwd())
+        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = 'server.csv'
         csv_path = os.path.join(output_folder, csv_filename)
         pd.DataFrame(self.record).to_csv(csv_path, index=False, header=True)
 
         self.send_to_node(data)
-        combine_csv_files(f"{self.client_type}", f"{self.dataset}")
+        combine_find_mean(f"{self.client_type}_{self.pruning_type}", f"{self.dataset}")
         terminate_process_on_port(self.port)
 
-    def start_assembly(self):
-        self.sharing_completed_count += 1
-        if self.sharing_completed_count == len(self.nodes):
-            self.sharing_completed_count = 0
-            data = {
-                "port": "SERVER",
-                "message": MESSAGE_START_ASSEMBLY,
-            }
-            self.send_to_node(data)
+    def start_assembly(self, port):
+        data = {
+            "port": "SERVER",
+            "message": constants.MESSAGE_START_ASSEMBLY,
+        }
+        self.send_to_node(data, port=port)
 
     def start_secret_sharing(self):
         self.training_completed_count += 1
@@ -187,6 +196,6 @@ class ServerNodeSubGroup:
             self.training_completed_count = 0
             data = {
                 "port": "SERVER",
-                "message": MESSAGE_START_SECRET_SHARING,
+                "message": constants.MESSAGE_START_SECRET_SHARING,
             }
             self.send_to_node(data)

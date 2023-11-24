@@ -18,8 +18,6 @@ from requests.adapters import HTTPAdapter
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from .constants import BIT_SIZE
-
 
 def post_with_retries(url, data, max_retries=3):
     session = requests.Session()
@@ -67,7 +65,7 @@ def terminate_process_on_port(port):
 
 
 def fetch_index(dataset):
-    current_dir = os.path.dirname(os.getcwd())
+    current_dir = os.path.abspath(os.getcwd())
     path = current_dir + f'/resources/dataset/{dataset}/iid_balanced.txt'
     clients = np.loadtxt(path, dtype=object)
     clients = clients.astype(np.float64)
@@ -83,7 +81,7 @@ def fetch_dataset(dataset):
     elif dataset == "f-mnist":
         return tf.keras.datasets.fashion_mnist.load_data()
     else:
-        current_dir = os.path.dirname(os.getcwd())
+        current_dir = os.path.abspath(os.getcwd())
         train_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/train_32x32.mat')
         test_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/test_32x32.mat')
         x_train = np.array(train_data['X'])
@@ -223,7 +221,7 @@ def get_lenet3(dataset):
     return model
 
 
-def generate_keys(save_path, name, nbits=BIT_SIZE):
+def generate_keys(save_path, name, nbits=4096):
     """
     :param save_path:
     :param nbits:
@@ -264,7 +262,7 @@ def generate_keys(save_path, name, nbits=BIT_SIZE):
 
 
 def get_public_key(client_id):
-    current_dir = os.path.dirname(os.getcwd())
+    current_dir = os.path.abspath(os.getcwd())
     path = current_dir + f'/resources/keys/client_{str(client_id)}_public.pem'
 
     with open(path, 'rb') as f:
@@ -272,7 +270,7 @@ def get_public_key(client_id):
 
 
 def get_private_key(client_id):
-    current_dir = os.path.dirname(os.getcwd())
+    current_dir = os.path.abspath(os.getcwd())
     path = current_dir + f'/resources/keys/client_{str(client_id)}_private.pem'
 
     with open(path, 'rb') as f:
@@ -327,63 +325,31 @@ def generate_additive_shares(value, n):
     return shares
 
 
-def randomly_select_weights(weights, fraction=0.25):
+def random_weight_selection(weights, fraction=0.25):
     # Get number of weights to select
     num_select = int(weights.shape[0] * fraction)
 
     # Generate random indices to select
-    indices = np.random.choice(weights.shape[0], size=num_select, replace=False)
+    indexes = np.random.choice(weights.shape[0], size=num_select, replace=False)
 
-    return indices
-
-
-def replace_selected(weights, new_weights):
-    replaced = []
-    for w, nw in zip(weights, new_weights):
-        # Indices of weights to replace
-        indices = [...]
-        # Create copy of existing weights
-        updated = np.copy(w)
-        # Replace selected indices with new weights
-        updated[indices] = nw
-        replaced.append(updated)
-    return replaced
+    return indexes
 
 
-def exchange_weights(client_weights):
-    n = len(client_weights)
-    client_shares = []
+def magnitude_weight_selection(weights, fraction=0.25):
+    # Get number of weights to select
+    num_select = int(weights.shape[0] * fraction)
 
-    # Generate shares for each client's salary
-    for salary in client_weights:
-        shares = generate_additive_shares(salary, n)
-        client_shares.append(shares)
+    # Get indices of weights sorted by magnitude
+    sorted_indices = np.argsort(np.abs(weights))
 
-    # Perform secure exchange of shares
-    exchanged_shares = [[] for _ in range(n)]
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                exchanged_shares[i].append(client_shares[j][i])
+    # Select the first 'num_select' indexes (smallest magnitudes)
+    indexes = sorted_indices[:num_select]
 
-        exchanged_shares[i].insert(0, client_shares[i][i])
-    return exchanged_shares
-
-
-def perform_exchange(n, client_shares):
-    # Perform secure exchange of shares
-    exchanged_shares = [[] for _ in range(n)]
-    for i in range(n):
-        for j in range(n):
-            if i != j:
-                exchanged_shares[i].append(client_shares[j][i])
-        exchanged_shares[i].insert(0, client_shares[i][i])
-
-    return exchanged_shares
+    return indexes
 
 
 def combine_csv_files(experiment, dataset):
-    parent_dir = os.path.dirname(os.getcwd())
+    parent_dir = os.path.abspath(os.getcwd())
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
     # List all files in the folder
@@ -415,26 +381,22 @@ def combine_csv_files(experiment, dataset):
     # return combined_df
 
 
-def combine_find_mean():
-    parent_dir = os.path.dirname((os.path.dirname(os.getcwd())))
-    folder_path = parent_dir + f'/results'
+def combine_find_mean(experiment, dataset):
+    parent_dir = os.path.abspath(os.getcwd())
+    folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
-    folder_items = os.listdir(folder_path)
+    combine_csv_files(experiment, dataset)
 
-    for folder in folder_items:
-        for dataset in ['DATASET']:
-            combine_csv_files(folder, dataset)
+    csv_dir = os.path.join(folder_path, 'combined.csv')
 
-            csv_dir = os.path.join(folder_path, folder, dataset, 'combined.csv')
-
-            if os.path.exists(csv_dir):
-                df = pd.read_csv(csv_dir)
-                df['Average Accuracy'] = df.apply(lambda row: row['accuracy'].mean(), axis=1)
-                df['Average Training'] = df.apply(lambda row: row['training'].mean(), axis=1)
-                if 'secret_sharing' in df:
-                    df['Average Secret Sharing'] = df.apply(lambda row: row['secret_sharing'].mean(), axis=1)
-                df.columns = df.columns.str.replace(r'\.\d+$', '', regex=True)
-                df.to_csv(csv_dir, index=False)
+    if os.path.exists(csv_dir):
+        df = pd.read_csv(csv_dir)
+        df['Average Accuracy'] = df.apply(lambda row: row['accuracy'].mean(), axis=1)
+        df['Average Training'] = df.apply(lambda row: row['training'].mean(), axis=1)
+        if 'secret_sharing' in df:
+            df['Average Secret Sharing'] = df.apply(lambda row: row['secret_sharing'].mean(), axis=1)
+        df.columns = df.columns.str.replace(r'\.\d+$', '', regex=True)
+        df.to_csv(csv_dir, index=False)
 
 
 def convert_png_to_eps(folder_path):
@@ -494,9 +456,3 @@ def iid_balanced(client_number, train_size, dataset):
                      int(i * train_size / client_number):int((i + 1) * train_size / client_number)]
 
     np.savetxt(f"resources/dataset/{dataset}/iid_balanced.txt", clients)
-
-
-# if __name__ == "__main__":
-#     combine_csv_files("addshare_node_grouping_3", "cifar-10")
-
-    # / Users / atiemoasare / Projects / thesis / resources / results / addshare_node_grouping_3 / cifar - 10
