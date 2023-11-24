@@ -388,7 +388,7 @@ def magnitude_weight_selection(weights, fraction=0.25):
 
 
 def combine_csv_files(experiment, dataset):
-    parent_dir = os.path.abspath(os.getcwd())
+    parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
     # List all files in the folder
@@ -421,7 +421,7 @@ def combine_csv_files(experiment, dataset):
 
 
 def combine_find_mean(experiment, dataset):
-    parent_dir = os.path.abspath(os.getcwd())
+    parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
     combine_csv_files(experiment, dataset)
