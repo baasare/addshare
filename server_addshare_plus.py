@@ -172,7 +172,7 @@ class ServerAddsharePlus:
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
 
-        current_dir = os.path.abspath(os.getcwd())
+        current_dir = os.path.dirname(os.path.realpath(__file__))
         output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = 'server.csv'

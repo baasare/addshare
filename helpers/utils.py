@@ -1,4 +1,3 @@
-import itertools
 import os
 import signal
 import random
@@ -7,6 +6,7 @@ import codecs
 import socket
 import logging
 import requests
+import itertools
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -65,7 +65,7 @@ def terminate_process_on_port(port):
 
 
 def fetch_index(dataset):
-    current_dir = os.path.abspath(os.getcwd())
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     path = current_dir + f'/resources/dataset/{dataset}/iid_balanced.txt'
     clients = np.loadtxt(path, dtype=object)
     clients = clients.astype(np.float64)
@@ -81,7 +81,7 @@ def fetch_dataset(dataset):
     elif dataset == "f-mnist":
         return tf.keras.datasets.fashion_mnist.load_data()
     else:
-        current_dir = os.path.abspath(os.getcwd())
+        current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
         train_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/train_32x32.mat')
         test_data = sio.loadmat(current_dir + f'/resources/dataset/svhn/test_32x32.mat')
         x_train = np.array(train_data['X'])
@@ -261,8 +261,47 @@ def generate_keys(save_path, name, nbits=4096):
     return public_pem_path, private_pem_path
 
 
+def iid_balanced(client_number, train_size, dataset):
+    # used to generate indexes
+    rand_array = np.arange(train_size)
+    np.random.shuffle(rand_array)
+
+    clients = [[] for _ in range(client_number)]
+
+    for i in range(client_number):
+        clients[i] = rand_array[
+                     int(i * train_size / client_number):int((i + 1) * train_size / client_number)]
+
+    np.savetxt(f"resources/dataset/{dataset}/iid_balanced.txt", clients)
+
+
+def generate_groups(nodes, group_size):
+    # shuffle clients
+    random.shuffle(nodes)
+
+    # Create a repeating iterator over the clients list
+    client_iterator = itertools.cycle(nodes)
+
+    # Keep track of which clients have been selected
+    selected_clients = set()
+
+    # Keep selecting groups of clients until each client has been selected at least once
+    selected_groups = []
+    while len(selected_clients) < len(nodes):
+        # Select the next group of clients
+        group = list(itertools.islice(client_iterator, group_size))
+
+        # Add the selected clients to the set of selected clients
+        selected_clients.update(group)
+
+        # Add the selected group to the list of selected groups
+        selected_groups.append(group)
+
+    # All clients have been selected at least once
+    return selected_groups
+
 def get_public_key(client_id):
-    current_dir = os.path.abspath(os.getcwd())
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     path = current_dir + f'/resources/keys/client_{str(client_id)}_public.pem'
 
     with open(path, 'rb') as f:
@@ -270,7 +309,7 @@ def get_public_key(client_id):
 
 
 def get_private_key(client_id):
-    current_dir = os.path.abspath(os.getcwd())
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     path = current_dir + f'/resources/keys/client_{str(client_id)}_private.pem'
 
     with open(path, 'rb') as f:
@@ -418,41 +457,3 @@ def convert_png_to_eps(folder_path):
             eps_image.save(png_file.replace("png", "eps"), format='EPS')
 
 
-def generate_groups(nodes, group_size):
-    # shuffle clients
-    random.shuffle(nodes)
-
-    # Create a repeating iterator over the clients list
-    client_iterator = itertools.cycle(nodes)
-
-    # Keep track of which clients have been selected
-    selected_clients = set()
-
-    # Keep selecting groups of clients until each client has been selected at least once
-    selected_groups = []
-    while len(selected_clients) < len(nodes):
-        # Select the next group of clients
-        group = list(itertools.islice(client_iterator, group_size))
-
-        # Add the selected clients to the set of selected clients
-        selected_clients.update(group)
-
-        # Add the selected group to the list of selected groups
-        selected_groups.append(group)
-
-    # All clients have been selected at least once
-    return selected_groups
-
-
-def iid_balanced(client_number, train_size, dataset):
-    # used to generate indexes
-    rand_array = np.arange(train_size)
-    np.random.shuffle(rand_array)
-
-    clients = [[] for _ in range(client_number)]
-
-    for i in range(client_number):
-        clients[i] = rand_array[
-                     int(i * train_size / client_number):int((i + 1) * train_size / client_number)]
-
-    np.savetxt(f"resources/dataset/{dataset}/iid_balanced.txt", clients)
