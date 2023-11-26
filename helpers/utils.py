@@ -382,7 +382,7 @@ def magnitude_weight_selection(weights, fraction=0.25):
     sorted_indices = np.argsort(np.abs(weights))
 
     # Select the first 'num_select' indexes (smallest magnitudes)
-    indexes = sorted_indices[:num_select]
+    indexes = sorted_indices[:num_select-1]
 
     return indexes
 
