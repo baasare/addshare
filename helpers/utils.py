@@ -15,8 +15,13 @@ import tensorflow as tf
 from timeit import default_timer
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import serialization, hashes
+
 
 
 def post_with_retries(url, data, max_retries=3):
@@ -261,6 +266,56 @@ def generate_keys(save_path, name, nbits=4096):
     return public_pem_path, private_pem_path
 
 
+def encrypt_message(message, recipient_public_key):
+    # Step 1: Generate ephemeral key pair
+    ephemeral_private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
+    ephemeral_public_key = ephemeral_private_key.public_key()
+
+    # Step 2: Derive shared secret
+    shared_secret = ephemeral_private_key.exchange(ec.ECDH(), recipient_public_key)
+
+    # Step 3: Derive encryption key and nonce
+    derived_key_material = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32 + 12,  # AES key length + nonce length
+        salt=None,
+        info=b'',
+    ).derive(shared_secret)
+
+    encryption_key = derived_key_material[:32]
+    nonce = derived_key_material[32:]
+
+    # Step 4: Encrypt the message
+    cipher = AESGCM(encryption_key)
+    ciphertext = cipher.encrypt(nonce, message.encode(), None)
+
+    # Step 5: Return the ephemeral public key and ciphertext
+    return ephemeral_public_key, ciphertext
+
+
+def decrypt_message(ciphertext, ephemeral_public_key, recipient_private_key):
+    # Step 1: Derive shared secret using recipient's private key and ephemeral public key
+    shared_secret = recipient_private_key.exchange(ec.ECDH(), ephemeral_public_key)
+
+    # Step 2: Derive encryption key and nonce
+    derived_key_material = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32 + 12,  # AES key length + nonce length
+        salt=None,
+        info=b'',
+    ).derive(shared_secret)
+
+    encryption_key = derived_key_material[:32]
+    nonce = derived_key_material[32:]
+
+    # Step 3: Decrypt the ciphertext
+    cipher = AESGCM(encryption_key)
+    decrypted_message = cipher.decrypt(nonce, ciphertext, None)
+
+    # Step 4: Return the decrypted message
+    return decrypted_message.decode()
+
+
 def iid_balanced(client_number, train_size, dataset):
     # used to generate indexes
     rand_array = np.arange(train_size)
@@ -299,6 +354,7 @@ def generate_groups(nodes, group_size):
 
     # All clients have been selected at least once
     return selected_groups
+
 
 def get_public_key(client_id):
     current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -382,7 +438,7 @@ def magnitude_weight_selection(weights, fraction=0.25):
     sorted_indices = np.argsort(np.abs(weights))
 
     # Select the first 'num_select' indexes (smallest magnitudes)
-    indexes = sorted_indices[:num_select-1]
+    indexes = sorted_indices[:num_select - 1]
 
     return indexes
 
@@ -424,7 +480,7 @@ def combine_find_mean(experiment, dataset):
     parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
-    combine_csv_files(experiment, dataset)
+    # combine_csv_files(experiment, dataset)
 
     csv_dir = os.path.join(folder_path, 'combined.csv')
 
@@ -457,3 +513,29 @@ def convert_png_to_eps(folder_path):
             eps_image.save(png_file.replace("png", "eps"), format='EPS')
 
 
+def combine_find_mean_2():
+    os.system('find . -name ".DS_Store" -delete')
+    parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    folder_path = parent_dir + f'/resources/results'
+    datasets = ['cifar-10', 'f-mnist', 'mnist']
+    folder_items = os.listdir(folder_path)
+
+    for folder in folder_items:
+        for dataset in datasets:
+            combine_csv_files(folder, dataset)
+
+            csv_dir = os.path.join(folder_path, folder, dataset, 'combined.csv')
+
+            if os.path.exists(csv_dir):
+                df = pd.read_csv(csv_dir)
+                df['Average Accuracy'] = df.apply(lambda row: row['accuracy'].mean(), axis=1)
+                df['Average Training'] = df.apply(lambda row: row['training'].mean(), axis=1)
+                if 'secret_sharing' in df:
+                    df['Average Secret Sharing'] = df.apply(lambda row: row['secret_sharing'].mean(), axis=1)
+                df.columns = df.columns.str.replace(r'\.\d+$', '', regex=True)
+                df.to_csv(csv_dir, index=False)
+
+
+if __name__ == "__main__":
+    combine_find_mean("fed_avg", "svhn")
+    # combine_find_mean_2()
