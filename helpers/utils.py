@@ -1,3 +1,4 @@
+import json
 import os
 import signal
 import random
@@ -15,13 +16,11 @@ import tensorflow as tf
 from timeit import default_timer
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import serialization, hashes
-
 
 
 def post_with_retries(url, data, max_retries=3):
@@ -226,21 +225,29 @@ def get_lenet3(dataset):
     return model
 
 
-def generate_keys(save_path, name, nbits=4096):
+def generate_keys(save_path, name, encryption_type, nbits=4096):
     """
     :param save_path:
     :param nbits:
     :param name:
+    :param encryption_type:
     :return:
     """
     os.makedirs(save_path, exist_ok=True)
+    private_key, public_key = None, None
 
-    # Generate an RSA key pair
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=nbits
-    )
-    public_key = private_key.public_key()
+    if encryption_type == 'rsa':
+        # Generate an RSA key pair
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=nbits
+        )
+        public_key = private_key.public_key()
+    else:
+        # Generate recipient key pair
+        print("Elliptical")
+        private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
+        public_key = private_key.public_key()
 
     public_pem_path = os.path.join(save_path, 'client_' + str(name) + '_public.pem')
     private_pem_path = os.path.join(save_path, 'client_' + str(name) + '_private.pem')
@@ -266,18 +273,15 @@ def generate_keys(save_path, name, nbits=4096):
     return public_pem_path, private_pem_path
 
 
-def encrypt_message(message, recipient_public_key):
-    # Step 1: Generate ephemeral key pair
+def encrypt_message_elliptical(message, recipient_public_key):
     ephemeral_private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
     ephemeral_public_key = ephemeral_private_key.public_key()
 
-    # Step 2: Derive shared secret
     shared_secret = ephemeral_private_key.exchange(ec.ECDH(), recipient_public_key)
 
-    # Step 3: Derive encryption key and nonce
     derived_key_material = HKDF(
         algorithm=hashes.SHA256(),
-        length=32 + 12,  # AES key length + nonce length
+        length=32 + 12,
         salt=None,
         info=b'',
     ).derive(shared_secret)
@@ -285,22 +289,18 @@ def encrypt_message(message, recipient_public_key):
     encryption_key = derived_key_material[:32]
     nonce = derived_key_material[32:]
 
-    # Step 4: Encrypt the message
     cipher = AESGCM(encryption_key)
     ciphertext = cipher.encrypt(nonce, message.encode(), None)
 
-    # Step 5: Return the ephemeral public key and ciphertext
     return ephemeral_public_key, ciphertext
 
 
-def decrypt_message(ciphertext, ephemeral_public_key, recipient_private_key):
-    # Step 1: Derive shared secret using recipient's private key and ephemeral public key
+def decrypt_message_elliptical(ciphertext, ephemeral_public_key, recipient_private_key):
     shared_secret = recipient_private_key.exchange(ec.ECDH(), ephemeral_public_key)
 
-    # Step 2: Derive encryption key and nonce
     derived_key_material = HKDF(
         algorithm=hashes.SHA256(),
-        length=32 + 12,  # AES key length + nonce length
+        length=32 + 12,
         salt=None,
         info=b'',
     ).derive(shared_secret)
@@ -308,11 +308,9 @@ def decrypt_message(ciphertext, ephemeral_public_key, recipient_private_key):
     encryption_key = derived_key_material[:32]
     nonce = derived_key_material[32:]
 
-    # Step 3: Decrypt the ciphertext
     cipher = AESGCM(encryption_key)
     decrypted_message = cipher.decrypt(nonce, ciphertext, None)
 
-    # Step 4: Return the decrypted message
     return decrypted_message.decode()
 
 
@@ -356,17 +354,17 @@ def generate_groups(nodes, group_size):
     return selected_groups
 
 
-def get_public_key(client_id):
+def get_public_key(client_id, encryption_type='rsa'):
     current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    path = current_dir + f'/resources/keys/client_{str(client_id)}_public.pem'
+    path = current_dir + f'/resources/keys/{encryption_type}/client_{str(client_id)}_public.pem'
 
     with open(path, 'rb') as f:
         return serialization.load_pem_public_key(f.read())
 
 
-def get_private_key(client_id):
+def get_private_key(client_id, encryption_type='rsa'):
     current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    path = current_dir + f'/resources/keys/client_{str(client_id)}_private.pem'
+    path = current_dir + f'/resources/keys/{encryption_type}/client_{str(client_id)}_private.pem'
 
     with open(path, 'rb') as f:
         return serialization.load_pem_private_key(f.read(), password=None)
@@ -420,27 +418,23 @@ def generate_additive_shares(value, n):
     return shares
 
 
-def random_weight_selection(weights, fraction=0.25):
-    # Get number of weights to select
-    num_select = int(weights.shape[0] * fraction)
+def random_weight_selection(weights, fraction):
+    percentage = max(0, min(100, fraction))
+    flattened_weights = weights.flatten()
+    num_elements = int(np.ceil(percentage * flattened_weights.size))
+    indexes = np.random.choice(flattened_weights.size, size=num_elements, replace=False)
+    original_indices = np.unravel_index(indexes, weights.shape)
+    indices = [arr.tolist() for arr in original_indices]
+    return indices
 
-    # Generate random indices to select
-    indexes = np.random.choice(weights.shape[0], size=num_select, replace=False)
 
-    return indexes
-
-
-def magnitude_weight_selection(weights, fraction=0.25):
-    # Get number of weights to select
-    num_select = int(weights.shape[0] * fraction)
-
-    # Get indices of weights sorted by magnitude
-    sorted_indices = np.argsort(np.abs(weights))
-
-    # Select the first 'num_select' indexes (smallest magnitudes)
-    indexes = sorted_indices[:num_select - 1]
-
-    return indexes
+def magnitude_weight_selection(weights, fraction):
+    percentage = max(0, min(100, fraction))
+    num_elements = int(np.ceil(percentage / 100 * weights.size))
+    indices_of_largest = np.argpartition(weights.flatten(), -num_elements)[-num_elements:]
+    original_indices = np.unravel_index(indices_of_largest, weights.shape)
+    indices = [arr.tolist() for arr in original_indices]
+    return indices
 
 
 def combine_csv_files(experiment, dataset):
@@ -480,7 +474,7 @@ def combine_find_mean(experiment, dataset):
     parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
 
-    # combine_csv_files(experiment, dataset)
+    combine_csv_files(experiment, dataset)
 
     csv_dir = os.path.join(folder_path, 'combined.csv')
 
@@ -536,6 +530,41 @@ def combine_find_mean_2():
                 df.to_csv(csv_dir, index=False)
 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, tf.Variable):
+            return self.default(obj.numpy())  # Convert tf.Variable to numpy array
+        return json.JSONEncoder.default(self, obj)
+
+
+class NumpyDecoder(json.JSONDecoder):
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.dict_to_object, *args, **kwargs)
+
+    def dict_to_object(self, d):
+        if isinstance(d, dict):
+            for key, value in d.items():
+                if isinstance(value, list):
+                    for i, v in enumerate(value):
+                        if isinstance(v, list):
+                            value[i] = self.list_to_ndarray(v)
+                d[key] = value
+        return d
+
+    def list_to_ndarray(self, l):
+        for i, v in enumerate(l):
+            if isinstance(v, list):
+                l[i] = self.list_to_ndarray(v)
+            elif isinstance(v, str):
+                try:
+                    l[i] = np.fromstring(v[1:-1], sep=',')
+                except:
+                    pass
+        return np.array(l, dtype=object)
+
+
 if __name__ == "__main__":
-    combine_find_mean("fed_avg", "svhn")
+    combine_find_mean("addshare_server_grouping_3", "svhn")
     # combine_find_mean_2()

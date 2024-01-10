@@ -15,8 +15,7 @@ from helpers import constants
 
 class ServerAddsharePlus:
     def __init__(self, server_id, address, port, max_nodes, client_type, pruning_type, dataset, indexes, x_train,
-                 y_train, x_test,
-                 y_test):
+                 y_train, x_test, y_test):
         self.id = server_id
         self.app = FastAPI()
         self.port = port
@@ -99,13 +98,13 @@ class ServerAddsharePlus:
         for layer in self.global_model.layers:
             if layer.trainable_weights:
                 if self.pruning_type == constants.RANDOM:
-                    kernel_indices = random_weight_selection(layer.weights[0], constants.THRESHOLD)
-                    bias_indices = random_weight_selection(layer.weights[1], constants.THRESHOLD)
-                    indexes[layer.name] = [kernel_indices.tolist(), bias_indices.tolist()]
+                    kernel_indices = random_weight_selection(layer.get_weights()[0], constants.THRESHOLD)
+                    bias_indices = random_weight_selection(layer.get_weights()[1], constants.THRESHOLD)
+                    indexes[layer.name] = [kernel_indices, bias_indices]
                 elif self.pruning_type == constants.MAGNITUDE:
-                    kernel_indices = magnitude_weight_selection(layer.weights[0], constants.THRESHOLD)
-                    bias_indices = magnitude_weight_selection(layer.weights[1], constants.THRESHOLD)
-                    indexes[layer.name] = [kernel_indices.tolist(), bias_indices.tolist()]
+                    kernel_indices = magnitude_weight_selection(layer.get_weights()[0], constants.THRESHOLD)
+                    bias_indices = magnitude_weight_selection(layer.get_weights()[1], constants.THRESHOLD)
+                    indexes[layer.name] = [kernel_indices, bias_indices]
 
                 self.average_weights[layer.name] = [[], []]
 

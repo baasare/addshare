@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import json
 import uvicorn
 import threading
 import numpy as np
@@ -9,13 +10,16 @@ import tensorflow as tf
 from server import Server
 from fastapi import FastAPI
 from timeit import default_timer as timer
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
+from helpers.utils import NumpyEncoder, get_public_key, get_private_key, NumpyDecoder
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
 
-from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE
 from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION, SERVER_ID
 from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRET_SHARING, MESSAGE_TRAINING_COMPLETED
+from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE, CHUNK_SIZE
 
 
 class AddShareNode:
@@ -45,6 +49,8 @@ class AddShareNode:
         self.round = 0
         self.current_accuracy = 0
         self.current_training_time = 0
+
+        self.private_key = get_private_key(self.port - CLIENT_PORT)
 
         self.X_train, self.y_train, self.X_test, self.y_test = x_train, y_train, x_test, y_test
 
@@ -135,6 +141,7 @@ class AddShareNode:
     def start_exchanging_shares(self):
         self.start_time = timer()
         for client in self.fl_nodes:
+            public_key = get_public_key(client - CLIENT_PORT)
             layer_weights = dict()
 
             for layer in self.other_shares.keys():
@@ -142,14 +149,38 @@ class AddShareNode:
                 weight_bias[0] = self.other_shares[layer][0].pop()
                 weight_bias[1] = self.other_shares[layer][1].pop()
 
-                layer_weights[layer] = encode_layer(weight_bias)
+                layer_weights[layer] = weight_bias
 
             # start encryption here
+            json_str = json.dumps(layer_weights, cls=NumpyEncoder)
+
+            value_bytes = json_str.encode('utf-8')
+            num_chunks = (len(value_bytes) + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+            weight_chunks = []
+            for i in range(num_chunks):
+                start = i * CHUNK_SIZE
+                end = start + CHUNK_SIZE
+                chunk = value_bytes[start:end]
+                weight_chunks.append(chunk)
+
+            encrypted_messages = []
+            for json_byte_chunk in weight_chunks:
+                encrypted_messages.append(
+                    public_key.encrypt(
+                        json_byte_chunk,
+                        padding.OAEP(
+                            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                            algorithm=hashes.SHA256(),
+                            label=None
+                        )
+                    )
+                )
 
             data = {
                 "port": self.port,
                 "message": MESSAGE_MODEL_SHARE,
-                "model_share": layer_weights,
+                "model_share": encode_layer(encrypted_messages),
             }
 
             self.send_to_node(data=data, address=ADDRESS, port=client)
@@ -165,10 +196,29 @@ class AddShareNode:
             self.send_to_node(data=data, address=ADDRESS, port=SERVER_PORT)
 
     def accept_shares(self, data):
-
         self.start_time = timer()
+
+        encrypted_messages = decode_layer(data)
+        decrypted_messages = []
+
+        for chunk in encrypted_messages:
+            decrypted_messages.append(
+                self.private_key.decrypt(
+                    chunk,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )
+                )
+            )
+
+        separator = b''
+        decoded_data = separator.join(decrypted_messages).decode('utf8')
+        data = json.loads(decoded_data, cls=NumpyDecoder)
+
         for layer in data.keys():
-            weight_bias = decode_layer(data[layer])
+            weight_bias = data[layer]
             self.own_shares[layer][0].append(weight_bias[0])
             self.own_shares[layer][1].append(weight_bias[1])
 
@@ -246,7 +296,7 @@ class AddShareNode:
 
 if __name__ == "__main__":
 
-    DATASET = str(sys.argv[1])
+    DATASET = "mnist"  # str(sys.argv[1])
     print(f"DATASET: {DATASET}")
 
     indexes = fetch_index(DATASET)
@@ -261,7 +311,7 @@ if __name__ == "__main__":
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='addshare',
+        client_type='addshare_encrypted',
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -284,7 +334,7 @@ if __name__ == "__main__":
         node = AddShareNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare",
+            client_type="addshare_encrypted",
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

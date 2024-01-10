@@ -1,18 +1,22 @@
 import os
 import sys
 import time
+import json
 import uvicorn
 import threading
 import pandas as pd
 import tensorflow as tf
 from server import Server
 from fastapi import FastAPI
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
-from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback
+from helpers.utils import get_public_key, TimingCallback, NumpyEncoder
+from helpers.utils import check_port, terminate_process_on_port, decode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, encode_layer
 
-from helpers.constants import CLIENT_PORT, SERVER_ID, NODES, MESSAGE_END_SESSION, EPOCHS
-from helpers.constants import SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_FL_UPDATE, ADDRESS
+from helpers.constants import CLIENT_PORT, SERVER_ID, NODES, MESSAGE_END_SESSION, EPOCHS, ADDRESS
+from helpers.constants import SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_FL_UPDATE_ENCRYPTED, CHUNK_SIZE
 
 
 class FedAvgNode:
@@ -33,6 +37,8 @@ class FedAvgNode:
         self.round = 0
         self.current_accuracy = 0
         self.current_training_time = 0
+
+        self.server_public_key = get_public_key('server')
 
         self.X_train, self.y_train, self.X_test, self.y_test = x_train, y_train, x_test, y_test
 
@@ -81,8 +87,32 @@ class FedAvgNode:
         model_weights = dict()
         for layer in self.model.layers:
             if layer.trainable_weights:
-                model_weights[layer.name] = encode_layer(layer.get_weights())
+                model_weights[layer.name] = layer.weights
 
+        json_str = json.dumps(model_weights, cls=NumpyEncoder)
+
+        value_bytes = json_str.encode('utf-8')
+        num_chunks = (len(value_bytes) + CHUNK_SIZE - 1) // CHUNK_SIZE
+
+        weight_chunks = []
+        for i in range(num_chunks):
+            start = i * CHUNK_SIZE
+            end = start + CHUNK_SIZE
+            chunk = value_bytes[start:end]
+            weight_chunks.append(chunk)
+
+        encrypted_messages = []
+        for json_byte_chunk in weight_chunks:
+            encrypted_messages.append(
+                self.server_public_key.encrypt(
+                    json_byte_chunk,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )
+                )
+            )
         self.record.append({
             'round': self.round,
             'accuracy': self.current_accuracy,
@@ -91,8 +121,8 @@ class FedAvgNode:
 
         data = {
             "port": self.port,
-            "message": MESSAGE_FL_UPDATE,
-            "model_weights": model_weights,
+            "message": MESSAGE_FL_UPDATE_ENCRYPTED,
+            "model_weights": encode_layer(encrypted_messages),
         }
 
         self.send_to_node(ADDRESS, SERVER_PORT, data)
@@ -128,7 +158,7 @@ if __name__ == "__main__":
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='fed_avg',
+        client_type='fed_avg_encrypted',
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -151,7 +181,7 @@ if __name__ == "__main__":
         node = FedAvgNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="fed_avg",
+            client_type="fed_avg_encrypted",
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

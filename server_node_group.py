@@ -15,14 +15,13 @@ from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_S
 
 
 class ServerNodeSubGroup:
-    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
+    def __init__(self, server_id, address, port, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
                  y_test):
         self.id = server_id
         self.app = FastAPI()
         self.port = port
         self.address = address
         self.connected_nodes = 0
-        self.max_nodes = max_nodes
         self.nodes = list()
 
         self.start_time = None

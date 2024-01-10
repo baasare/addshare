@@ -1,39 +1,37 @@
-import json
 import os
 import sys
 import time
+import random
 import uvicorn
 import threading
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from server_addshare_plus import ServerAddsharePlus
 from fastapi import FastAPI
+from server_node_group import ServerNodeSubGroup
 from timeit import default_timer as timer
 
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
-
-from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE
-from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION, SERVER_ID
+from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION
 from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRET_SHARING, MESSAGE_TRAINING_COMPLETED
+from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE, SERVER_ID
 
 
-class AddSharePlusNode:
+class AddShareNode:
 
-    def __init__(self, address, port, client_type, pruning_type, dataset, x_train, y_train, x_test, y_test):
+    def __init__(self, address, port, client_type, group_size, dataset, x_train, y_train, x_test, y_test):
         self.app = FastAPI()
         self.port = port
         self.address = address
 
         self.dataset = dataset
+        self.group_size = group_size
         self.client_type = client_type
-        self.pruning_type = pruning_type
 
         self.model = None
         self.epochs = EPOCHS
 
-        self.indexes = list()
         self.own_shares = dict()
         self.other_shares = dict()
 
@@ -87,8 +85,8 @@ class AddSharePlusNode:
 
     def start_training(self, data):
 
-        self.fl_nodes = [port for port in data["nodes"] if port != self.port]
-        self.indexes = json.loads(data["indexes"])
+        all_nodes = [port for port in data["nodes"] if port != self.port]
+        self.fl_nodes = random.sample(all_nodes, self.group_size - 1)
         self.round += 1
         self.model = tf.keras.models.model_from_json(data["model_architecture"])
         self.model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
@@ -120,17 +118,8 @@ class AddSharePlusNode:
 
         for layer in self.model.layers:
             if layer.trainable_weights:
-                # get random indexes
-                selected_kernel_index = tuple(np.array(li) for li in self.indexes[layer.name][0])
-                selected_bias_index = tuple(np.array(li) for li in self.indexes[layer.name][1])
-
-                # get selected columns
-                selected_kernels = layer.get_weights()[0][selected_kernel_index]
-                selected_bias = layer.get_weights()[1][selected_bias_index]
-
-                # generate additive shares of selected weights
-                weight_shares = list(generate_additive_shares(selected_kernels, NODES))
-                bias_shares = list(generate_additive_shares(selected_bias, NODES))
+                weight_shares = list(generate_additive_shares(layer.weights[0], shares))
+                bias_shares = list(generate_additive_shares(layer.weights[1], shares))
 
                 self.own_shares[layer.name] = [[], []]
                 self.own_shares[layer.name][0].append(weight_shares.pop())
@@ -163,17 +152,16 @@ class AddSharePlusNode:
                 "model_share": layer_weights,
             }
 
+            print(f"NODE {self.port} is sharing with {client}")
             self.send_to_node(data=data, address=ADDRESS, port=client)
 
         self.secret_sharing_time = self.secret_sharing_time + (timer() - self.start_time)
 
-        if self.share_count == int(len(self.fl_nodes) + 1):
-            self.share_count = 0
-            data = {
-                "port": self.port,
-                "message": MESSAGE_SHARING_COMPLETE,
-            }
-            self.send_to_node(data=data, address=ADDRESS, port=SERVER_PORT)
+        data = {
+            "port": self.port,
+            "message": MESSAGE_SHARING_COMPLETE,
+        }
+        self.send_to_node(data=data, address=ADDRESS, port=SERVER_PORT)
 
     def accept_shares(self, data):
 
@@ -187,34 +175,14 @@ class AddSharePlusNode:
 
         self.secret_sharing_time = self.secret_sharing_time + (timer() - self.start_time)
 
-        if self.share_count == int(len(self.fl_nodes) + 1):
-            self.share_count = 0
-            data = {
-                "port": self.port,
-                "message": MESSAGE_SHARING_COMPLETE,
-            }
-            self.send_to_node(data=data, address=ADDRESS, port=SERVER_PORT)
-
     def reassemble_shares(self):
         self.start_time = timer()
         layer_weights = dict()
 
         for layer in self.own_shares.keys():
-            kernel = np.sum((self.own_shares[layer][0]), axis=0)
-            bias = np.sum((self.own_shares[layer][1]), axis=0)
-
-            selected_kernel_index = tuple(np.array(li) for li in self.indexes[layer][0])
-            selected_bias_index = tuple(np.array(li) for li in self.indexes[layer][1])
-
-            # Get original model weights
-            temp_weight_bias = [
-                self.model.get_layer(layer).get_weights()[0],
-                self.model.get_layer(layer).get_weights()[1]
-            ]
-
-            # Replace original selected weights with assembled additive shares
-            temp_weight_bias[0][selected_kernel_index] = kernel
-            temp_weight_bias[1][selected_bias_index] = bias
+            temp_weight_bias = [None, None]
+            temp_weight_bias[0] = np.sum((self.own_shares[layer][0]), axis=0)
+            temp_weight_bias[1] = np.sum((self.own_shares[layer][1]), axis=0)
             layer_weights[layer] = encode_layer(temp_weight_bias)
 
         self.secret_sharing_time = self.secret_sharing_time + (timer() - self.start_time)
@@ -260,7 +228,7 @@ class AddSharePlusNode:
 
     def disconnect(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}/{self.dataset}"
+        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.group_size}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = f'client_{self.port - CLIENT_PORT}.csv'
         csv_path = os.path.join(output_folder, csv_filename)
@@ -270,8 +238,8 @@ class AddSharePlusNode:
 if __name__ == "__main__":
 
     DATASET = "mnist"  # str(sys.argv[1])
-    SELECTION_TYPE = "random"  # str(sys.argv[2])
-    print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}")
+    GROUPINGS = 2  # int(sys.argv[2])
+    print(f"DATASET: {DATASET}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
@@ -280,13 +248,12 @@ if __name__ == "__main__":
     ports = []
     threads = []
 
-    server = ServerAddsharePlus(
+    server = ServerNodeSubGroup(
         server_id=SERVER_ID,
         address=ADDRESS,
         port=SERVER_PORT,
-        max_nodes=NODES,
-        client_type='addshare_plus',
-        pruning_type=SELECTION_TYPE,
+        client_type='addshare_node_grouping',
+        group_size=GROUPINGS,
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -306,11 +273,11 @@ if __name__ == "__main__":
             y_test
         )
 
-        node = AddSharePlusNode(
+        node = AddShareNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare_plus",
-            pruning_type=SELECTION_TYPE,
+            client_type="addshare_node_grouping",
+            group_size=GROUPINGS,
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

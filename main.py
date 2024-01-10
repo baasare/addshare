@@ -1,10 +1,11 @@
+import os
 import numpy as np
 import tensorflow as tf
-from tensorflow import GradientTape
+import tensorflow.python.keras.backend as K
 
+from helpers.constants import NODES
+from helpers.utils import generate_keys
 
-# Calculates the second derivative of the network's error function
-# with respect to each weight to quantify sensitivity.
 
 def get_model():
     model = tf.keras.models.Sequential()
@@ -15,64 +16,87 @@ def get_model():
     return model
 
 
-# Define the loss function
-def custom_loss(y_true, y_pred):
-    return tf.keras.losses.categorical_crossentropy(y_true, y_pred, from_logits=True)
+@tf.function
+def get_logits(model, x):
+    return model(x)
 
 
-def calculate_hessian(model, x, y):
-    weights = model.trainable_weights
-    gradients = tf.keras.backend.gradients(custom_loss(model.input, model.output), weights)
-    flat_gradients = [tf.keras.backend.flatten(g) for g in gradients if g is not None]
-    flat_gradients = tf.keras.backend.concatenate(flat_gradients)
-    hessian = tf.keras.backend.hessian(custom_loss(model.input, model.output), flat_gradients)
-    return tf.keras.backend.eval(hessian, feed_dict={model.input: x, tf.keras.backend.learning_phase(): 0})
+@tf.function
+def loss_fn(logits, y):
+    return K.categorical_crossentropy(y, logits)
 
 
-def compute_OBD_saliency(model, validation_data):
-    weights = model.trainable_weights
-    loss = model.evaluate(tf.convert_to_tensor(validation_data[0], dtype=tf.float32),
-                          tf.convert_to_tensor(validation_data[1], dtype=tf.float32),
-                          verbose=0)
+def compute_hessian_diagonal(model, weights, x, y):
+    with tf.GradientTape(persistent=True) as tape:
+        logits = model(x)
+        loss = loss_fn(logits, y)
+
+        grads = tape.gradient(loss, weights)
+        hessians = []
+
+        for w, grad in zip(weights, grads):
+            hess = tape.gradient(grad, w)
+            hessians.append(hess.numpy())
+
+        return hessians
 
 
-    hessians = []
-    for i in range(len(weights)):
-        with tf.GradientTape() as outer_tape:
-            first_order_gradient = outer_tape.gradient(loss, weights)[i]
+def obd_pruning(model, weights, x, y, saliency_threshold):
+    hessian_diagonal = 0  # compute_hessian_diagonal(model, x_train, y_train)
 
-        with tf.GradientTape() as inner_tape:
-            hessian_entry = inner_tape.gradient(first_order_gradient, weights)
+    # Identify weights to prune based on the saliency threshold
+    indices = np.where(np.array(hessian_diagonal) > saliency_threshold)[0]
 
-        hessians.append(hessian_entry)
+    return indices
 
-    get_hessians = tf.keras.backend.function(model.inputs, hessians)
 
-    hessians_vals = np.array(get_hessians(validation_data))
+def random_weight_selection(weights, fraction=0.25):
+    percentage = max(0, min(100, fraction))
 
-    saliency = {}
-    for i, weight in enumerate(weights):
-        parameter_name = weight.name
-        saliency[parameter_name] = np.mean(np.abs(hessians_vals[i]), axis=0)
+    num_elements = int(np.ceil(percentage * weights.size))
 
-    return saliency
+    flattened_array = weights.flatten()
+
+    random_elements = np.random.choice(flattened_array, num_elements, replace=False)
+
+    indices_in_flattened = np.where(np.isin(flattened_array, random_elements))[0]
+
+    indices = np.unravel_index(indices_in_flattened, weights.shape)
+
+    return indices
 
 
 if __name__ == "__main__":
-    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'keys', 'elliptical')
+    # generate encryption keys for all clients
+    for i in range(50):
+        generate_keys(keys_path, 1 + i, 'elliptical')
 
-    x_train = x_train.astype('float32') / 255.0
-    x_test = x_test.astype('float32') / 255.0
-
-    y_train = tf.keras.utils.to_categorical(y_train, 10)
-    y_test = tf.keras.utils.to_categorical(y_test, 10)
-
-    test_model = get_model()
-    test_model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001), loss='categorical_crossentropy',
-                       metrics=['accuracy'])
-
-    test_model.fit(x_train, y_train, epochs=1, batch_size=100, verbose=True)
-
-    sensitivity_value = compute_OBD_saliency(test_model, validation_data=(x_test, y_test))
-
-    print(sensitivity_value)
+    # (x_train, y_train), (x_test, y_test) = tf.keras.datasets.cifar10.load_data()
+    #
+    # x_train = x_train.astype('float32') / 255.0
+    # x_test = x_test.astype('float32') / 255.0
+    #
+    # y_train = tf.keras.utils.to_categorical(y_train, 10)
+    # y_test = tf.keras.utils.to_categorical(y_test, 10)
+    #
+    # # Load trained model
+    # model = get_model()
+    # model.compile(
+    #     optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
+    #     loss='categorical_crossentropy',
+    #     metrics=['accuracy']
+    # )
+    #
+    # model.fit(x_train, y_train, epochs=1, batch_size=100, verbose=True)
+    #
+    # # weights = model.trainable_weights
+    #
+    # weights = model.layers[2].get_weights()[0]
+    #
+    # indexes = random_weight_selection(weights, 0.05)
+    #
+    # print(indexes)
+    #
+    # # sensitivity = compute_hessian_diagonal(model, weights, x_train[:1000], y_train[:1000])
+    # # print(sensitivity)

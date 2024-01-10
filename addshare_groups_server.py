@@ -151,7 +151,6 @@ class AddShareNode:
                 "model_share": layer_weights,
             }
 
-            print(f"NODE {self.port} is sharing with {client}")
             self.send_to_node(data=data, address=ADDRESS, port=client)
 
         self.secret_sharing_time = self.secret_sharing_time + (timer() - self.start_time)
@@ -246,8 +245,8 @@ class AddShareNode:
 
 if __name__ == "__main__":
 
-    DATASET = str(sys.argv[1])
-    GROUPINGS = int(sys.argv[2])
+    DATASET = "mnist"  # str(sys.argv[1])
+    GROUPINGS = 2  # int(sys.argv[2])
     print(f"DATASET: {DATASET}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)

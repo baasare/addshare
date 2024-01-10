@@ -1,15 +1,14 @@
 import json
 import os
-import sys
 import time
 import uvicorn
 import threading
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from server_addshare_plus import ServerAddsharePlus
 from fastapi import FastAPI
 from timeit import default_timer as timer
+from server_addshare_plus_groups import ServerAddsharePlusSubGroup
 
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
@@ -21,13 +20,14 @@ from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRE
 
 class AddSharePlusNode:
 
-    def __init__(self, address, port, client_type, pruning_type, dataset, x_train, y_train, x_test, y_test):
+    def __init__(self, address, port, client_type, group_size, pruning_type, dataset, x_train, y_train, x_test, y_test):
         self.app = FastAPI()
         self.port = port
         self.address = address
 
         self.dataset = dataset
         self.client_type = client_type
+        self.group_size = group_size
         self.pruning_type = pruning_type
 
         self.model = None
@@ -129,8 +129,8 @@ class AddSharePlusNode:
                 selected_bias = layer.get_weights()[1][selected_bias_index]
 
                 # generate additive shares of selected weights
-                weight_shares = list(generate_additive_shares(selected_kernels, NODES))
-                bias_shares = list(generate_additive_shares(selected_bias, NODES))
+                weight_shares = list(generate_additive_shares(selected_kernels, shares))
+                bias_shares = list(generate_additive_shares(selected_bias, shares))
 
                 self.own_shares[layer.name] = [[], []]
                 self.own_shares[layer.name][0].append(weight_shares.pop())
@@ -260,7 +260,7 @@ class AddSharePlusNode:
 
     def disconnect(self):
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}/{self.dataset}"
+        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}_{self.group_size}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = f'client_{self.port - CLIENT_PORT}.csv'
         csv_path = os.path.join(output_folder, csv_filename)
@@ -271,7 +271,8 @@ if __name__ == "__main__":
 
     DATASET = "mnist"  # str(sys.argv[1])
     SELECTION_TYPE = "random"  # str(sys.argv[2])
-    print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}")
+    GROUPINGS = 2  # int(sys.argv[3])
+    print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
@@ -280,13 +281,14 @@ if __name__ == "__main__":
     ports = []
     threads = []
 
-    server = ServerAddsharePlus(
+    server = ServerAddsharePlusSubGroup(
         server_id=SERVER_ID,
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='addshare_plus',
+        client_type='addshare_plus_server_grouping',
         pruning_type=SELECTION_TYPE,
+        group_size=GROUPINGS,
         dataset=DATASET,
         indexes=indexes,
         x_train=x_train,
@@ -309,8 +311,9 @@ if __name__ == "__main__":
         node = AddSharePlusNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare_plus",
+            client_type="addshare_plus_server_grouping",
             pruning_type=SELECTION_TYPE,
+            group_size=GROUPINGS,
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,

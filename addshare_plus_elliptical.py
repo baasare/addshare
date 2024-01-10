@@ -7,16 +7,20 @@ import threading
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from server_addshare_plus import ServerAddsharePlus
 from fastapi import FastAPI
 from timeit import default_timer as timer
+from server_addshare_plus import ServerAddsharePlus
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 
+from helpers.utils import decrypt_message_elliptical, encrypt_message_elliptical
+from helpers.utils import NumpyEncoder, get_public_key, get_private_key, NumpyDecoder
 from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
 from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
 
-from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE
-from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION, SERVER_ID
+from helpers.constants import EPOCHS, ADDRESS, SERVER_PORT, MESSAGE_START_TRAINING, MESSAGE_END_SESSION
 from helpers.constants import MESSAGE_START_ASSEMBLY, NODES, MESSAGE_START_SECRET_SHARING, MESSAGE_TRAINING_COMPLETED
+from helpers.constants import MESSAGE_FL_UPDATE, CLIENT_PORT, MESSAGE_MODEL_SHARE, MESSAGE_SHARING_COMPLETE, SERVER_ID
 
 
 class AddSharePlusNode:
@@ -49,6 +53,8 @@ class AddSharePlusNode:
         self.current_accuracy = 0
         self.current_training_time = 0
 
+        self.private_key = get_private_key(self.port - CLIENT_PORT, 'elliptical')
+
         self.X_train, self.y_train, self.X_test, self.y_test = x_train, y_train, x_test, y_test
 
         @self.app.post("/message")
@@ -64,7 +70,7 @@ class AddSharePlusNode:
                 self.end_session(data)
 
             elif data["message"] == MESSAGE_MODEL_SHARE:
-                self.accept_shares(data['model_share'])
+                self.accept_shares(data['model_share'], data['ephemeral_public_key'] )
 
             elif data["message"] == MESSAGE_START_ASSEMBLY:
                 self.reassemble_shares()
@@ -148,6 +154,7 @@ class AddSharePlusNode:
     def start_exchanging_shares(self):
         self.start_time = timer()
         for client in self.fl_nodes:
+            public_key = get_public_key(client - CLIENT_PORT, 'elliptical')
             layer_weights = dict()
 
             for layer in self.other_shares.keys():
@@ -155,12 +162,22 @@ class AddSharePlusNode:
                 weight_bias[0] = self.other_shares[layer][0].pop()
                 weight_bias[1] = self.other_shares[layer][1].pop()
 
-                layer_weights[layer] = encode_layer(weight_bias)
+                layer_weights[layer] = weight_bias
+
+            # start encryption here
+            json_str = json.dumps(layer_weights, cls=NumpyEncoder)
+
+            ephemeral_public_key, encrypted_messages = encrypt_message_elliptical(json_str, public_key)
+            ephemeral_public_key_pem = ephemeral_public_key.public_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo
+            )
 
             data = {
                 "port": self.port,
                 "message": MESSAGE_MODEL_SHARE,
-                "model_share": layer_weights,
+                "model_share": encode_layer(encrypted_messages),
+                "ephemeral_public_key": encode_layer(ephemeral_public_key_pem),
             }
 
             self.send_to_node(data=data, address=ADDRESS, port=client)
@@ -175,11 +192,19 @@ class AddSharePlusNode:
             }
             self.send_to_node(data=data, address=ADDRESS, port=SERVER_PORT)
 
-    def accept_shares(self, data):
-
+    def accept_shares(self, data, ephemeral_public_key):
         self.start_time = timer()
+
+        encrypted_messages = decode_layer(data)
+        ephemeral_public_key_pem = decode_layer(ephemeral_public_key)
+        public_key = serialization.load_pem_public_key(ephemeral_public_key_pem, backend=default_backend())
+
+        decrypted_message = decrypt_message_elliptical(encrypted_messages, public_key, self.private_key)
+
+        data = json.loads(decrypted_message, cls=NumpyDecoder)
+
         for layer in data.keys():
-            weight_bias = decode_layer(data[layer])
+            weight_bias = data[layer]
             self.own_shares[layer][0].append(weight_bias[0])
             self.own_shares[layer][1].append(weight_bias[1])
 
@@ -285,7 +310,7 @@ if __name__ == "__main__":
         address=ADDRESS,
         port=SERVER_PORT,
         max_nodes=NODES,
-        client_type='addshare_plus',
+        client_type='addshare_plus_elliptical',
         pruning_type=SELECTION_TYPE,
         dataset=DATASET,
         indexes=indexes,
@@ -309,7 +334,7 @@ if __name__ == "__main__":
         node = AddSharePlusNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="addshare_plus",
+            client_type="addshare_plus_elliptical",
             pruning_type=SELECTION_TYPE,
             dataset=DATASET,
             x_train=X_train,
