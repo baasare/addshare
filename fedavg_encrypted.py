@@ -143,7 +143,7 @@ class FedAvgNode:
 
 if __name__ == "__main__":
 
-    DATASET = "mnist"  # str(sys.argv[1])
+    DATASET = str(sys.argv[1])
     print(f"DATASET: {DATASET}")
 
     indexes = fetch_index(DATASET)

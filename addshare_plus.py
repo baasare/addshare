@@ -269,8 +269,8 @@ class AddSharePlusNode:
 
 if __name__ == "__main__":
 
-    DATASET = "mnist"  # str(sys.argv[1])
-    SELECTION_TYPE = "random"  # str(sys.argv[2])
+    DATASET = str(sys.argv[1])
+    SELECTION_TYPE = str(sys.argv[2])
     print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}")
 
     indexes = fetch_index(DATASET)

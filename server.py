@@ -12,8 +12,8 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_private_key
 from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_csv_files, NumpyDecoder
 
-from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING, CLIENT_PORT
-from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE, ADDRESS
+from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
+from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING, ADDRESS
 from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, MESSAGE_FL_UPDATE_ENCRYPTED
 
 

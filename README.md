@@ -1,42 +1,45 @@
 # addshare
 
-- FedAvg ✅
-- FedAvg Encrypted ✅
+### Baselines
+1. FedAvg ✅
+2. FedAvg Encrypted ✅
+3. Scotch
+4. FedShare
+5. AddShare - All ✅
+6. AddShare Encrypted - All ✅
+7. AddShare Server - G3 ✅
+8. AddShare Server - G5 ✅
+9. AddShare Server - G10 ✅
+10. AddShare Server Encrypted - G3 ✅
+11. AddShare Server Encrypted - G5 ✅
+12. AddShare Server Encrypted - G10 ✅
+13. AddShare Client - G3 ✅
+14. AddShare Client - G5 ✅
+15. AddShare Client - G10 ✅
+16. AddShare Client Encrypted - G3 ✅
+17. AddShare Client Encrypted - G5 ✅
+18. AddShare Client Encrypted - G10 ✅
+***
+
+### Alternatives
+1. AddShare+ (Random) - All ✅
+2. AddShare+ (Random) Encrypted(RSA) - All ✅
+3. AddShare+ (Random) Server - G3 ✅
+4. AddShare+ (Random) Server - G5 ✅
+5. AddShare+ (Random) Server - G10 ✅
+6. AddShare+ (Random) Server Encrypted(RSA) - G3 ✅
+7. AddShare+ (Random) Server Encrypted(RSA) - G5 ✅
+8. AddShare+ (Random) Server Encrypted(RSA) - G10 ✅
+9. AddShare+ (Random) Client - G3 ✅
+10. AddShare+ (Random) Client - G5 ✅
+11. AddShare+ (Random) Client - G10 ✅
+12. AddShare+ (Random) Client Encrypted(RSA) - G3 ✅
+13. AddShare+ (Random) Client Encrypted(RSA) - G5 ✅
+14. AddShare+ (Random) Client Encrypted(RSA) - G10 ✅
 
 
-- AddShare - All ✅
-- AddShare Encrypted - All ✅
-- AddShare Server - G3 ✅
-- AddShare Server - G5 ✅
-- AddShare Server - G10 ✅
-- AddShare Server Encrypted - G3  ✅
-- AddShare Server Encrypted - G5  ✅
-- AddShare Server Encrypted - G10  ✅
-- AddShare Client - G3 ✅
-- AddShare Client - G5 ✅
-- AddShare Client - G10 ✅
-- AddShare Client Encrypted - G3 ✅
-- AddShare Client Encrypted - G5 ✅
-- AddShare Client Encrypted - G10 ✅
-
-
-- AddShare+ - All ✅
-- AddShare+ Encrypted - All ✅
-- AddShare+ Server - G3 ✅
-- AddShare+ Server - G5 ✅
-- AddShare+ Server - G10 ✅
-- AddShare+ Server Encrypted - G3 ✅
-- AddShare+ Server Encrypted - G5 ✅
-- AddShare+ Server Encrypted - G10 ✅
-- AddShare+ Client - G3 ✅
-- AddShare+ Client - G5 ✅
-- AddShare+ Client - G10 ✅
-- AddShare+ Client Encrypted - G3 ✅
-- AddShare+ Client Encrypted - G5 ✅
-- AddShare+ Client Encrypted - G10 ✅
-
-
-- AddShare+ Encrypted Elliptical - All ✅
-- AddShare+ Magnitude - All ✅
-- AddShare+ OBD - All
-- AddShare+ L2 - All
+15. AddShare+ (Random) Encrypted(Elliptical) - All ✅
+16. AddShare+ Magnitude - All ✅
+17. AddShare+ OBD - All ✅
+18. AddShare+ L1 - All ✅
+19. AddShare+ L2 - All ✅

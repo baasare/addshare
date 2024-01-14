@@ -437,6 +437,31 @@ def magnitude_weight_selection(weights, fraction):
     return indices
 
 
+def obd_weight_selection(model, x, y, weights, fraction):
+    with tf.GradientTape() as tape:
+        predictions = model(x)
+        loss = tf.keras.losses.categorical_crossentropy(y, predictions)
+        gradients = tape.gradient(loss, weights)
+        sensitivities = [grad * weight for grad, weight in zip(gradients, weights)]
+        sensitivities = np.array(sensitivities)
+        return magnitude_weight_selection(sensitivities, fraction)
+
+
+def regularization_weight_selection(model, x, y, reg_type, weights, fraction):
+    regularization_lambda = 0.01
+    l1_regularization = regularization_lambda * tf.reduce_sum(tf.abs(weights))
+    l2_regularization = regularization_lambda * tf.reduce_sum(tf.square(weights))
+
+    with tf.GradientTape() as tape:
+        predictions = model(x)
+        loss = tf.keras.losses.categorical_crossentropy(y, predictions)
+        gradients = tape.gradient(loss, weights)
+
+    total_gradient = gradients + (l1_regularization if reg_type == "l1" else l2_regularization)
+    l1_weight = np.array(weights - total_gradient)
+    return magnitude_weight_selection(l1_weight, fraction)
+
+
 def combine_csv_files(experiment, dataset):
     parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
@@ -565,6 +590,9 @@ class NumpyDecoder(json.JSONDecoder):
         return np.array(l, dtype=object)
 
 
-if __name__ == "__main__":
-    combine_find_mean("addshare_server_grouping_3", "svhn")
-    # combine_find_mean_2()
+# if __name__ == "__main__":
+#     combine_find_mean("addshare_server_grouping_3", "svhn")
+#     keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'keys', 'elliptical')
+#     # generate encryption keys for all clients
+#     for i in range(50):
+#         generate_keys(keys_path, 1 + i, 'elliptical')

@@ -1,5 +1,6 @@
-import json
 import os
+import sys
+import json
 import time
 import uvicorn
 import threading
@@ -320,9 +321,9 @@ class AddSharePlusNode:
 
 if __name__ == "__main__":
 
-    DATASET = "mnist"  # str(sys.argv[1])
-    SELECTION_TYPE = "random"  # str(sys.argv[2])
-    GROUPINGS = 2  # int(sys.argv[3])
+    DATASET = str(sys.argv[1])
+    SELECTION_TYPE = str(sys.argv[2])
+    GROUPINGS = int(sys.argv[3])
     print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)

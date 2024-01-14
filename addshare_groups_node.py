@@ -237,8 +237,8 @@ class AddShareNode:
 
 if __name__ == "__main__":
 
-    DATASET = "mnist"  # str(sys.argv[1])
-    GROUPINGS = 2  # int(sys.argv[2])
+    DATASET = str(sys.argv[1])
+    GROUPINGS = int(sys.argv[2])
     print(f"DATASET: {DATASET}, GROUP: {GROUPINGS}")
 
     indexes = fetch_index(DATASET)

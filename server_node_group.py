@@ -9,9 +9,9 @@ from timeit import default_timer as timer
 from helpers.utils import check_port, terminate_process_on_port, combine_csv_files
 from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
 
+from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
 from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TRAINING, ADDRESS
-from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 
 
 class ServerNodeSubGroup:

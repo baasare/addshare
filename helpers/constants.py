@@ -19,11 +19,12 @@ THRESHOLD = 0.25
 
 RANDOM = "random"
 MAGNITUDE = "magnitude"
-OBD = "OBT"
-L2R = "L2R"
+OBD = "obd"
+L1R = "l1"
+L2R = "l2"
 
-NODES = 3
-ROUNDS = 2
+NODES = 50
+ROUNDS = 10
 EPOCHS = 2
 GROUPINGS = 3
 DATASET = 'mnist'

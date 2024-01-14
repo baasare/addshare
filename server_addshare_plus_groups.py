@@ -7,8 +7,8 @@ import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
 
-from helpers.utils import generate_groups, magnitude_weight_selection
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5
+from helpers.utils import generate_groups, magnitude_weight_selection, regularization_weight_selection
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, obd_weight_selection
 from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_find_mean, random_weight_selection
 
 from helpers import constants
@@ -124,7 +124,40 @@ class ServerAddsharePlusSubGroup:
                     kernel_indices = magnitude_weight_selection(layer.get_weights()[0], constants.THRESHOLD)
                     bias_indices = magnitude_weight_selection(layer.get_weights()[1], constants.THRESHOLD)
                     indexes[layer.name] = [kernel_indices, bias_indices]
-
+                elif self.pruning_type == constants.OBD:
+                    kernel_indices = obd_weight_selection(
+                        self.global_model,
+                        self.X_test,
+                        self.y_test,
+                        layer.trainable_weights[0],
+                        constants.THRESHOLD
+                    )
+                    bias_indices = obd_weight_selection(
+                        self.global_model,
+                        self.X_test,
+                        self.y_test,
+                        layer.trainable_weights[1],
+                        constants.THRESHOLD
+                    )
+                    indexes[layer.name] = [kernel_indices, bias_indices]
+                else:
+                    kernel_indices = regularization_weight_selection(
+                        self.global_model,
+                        self.X_test,
+                        self.y_test,
+                        self.pruning_type,
+                        layer.trainable_weights[0],
+                        constants.THRESHOLD
+                    )
+                    bias_indices = regularization_weight_selection(
+                        self.global_model,
+                        self.X_test,
+                        self.y_test,
+                        self.pruning_type,
+                        layer.trainable_weights[1],
+                        constants.THRESHOLD
+                    )
+                    indexes[layer.name] = [kernel_indices, bias_indices]
                 self.average_weights[layer.name] = [[], []]
 
         data = {

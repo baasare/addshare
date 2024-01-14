@@ -3,10 +3,10 @@
 # SLURM script for a job on Compute Canada cluster.
 # ---------------------------------------------------------------------
 #SBATCH --account=def-pbranco
-#SBATCH --nodes=3
+#SBATCH --nodes=2
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=35G
-#SBATCH --time=0-12:00:00
+#SBATCH --mem=20G
+#SBATCH --time=0-10:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca

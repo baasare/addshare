@@ -15,7 +15,8 @@ from helpers.constants import MESSAGE_SHARING_COMPLETE, ROUNDS, MESSAGE_START_TR
 
 
 class ServerSubGroup:
-    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train, x_test,
+    def __init__(self, server_id, address, port, max_nodes, client_type, group_size, dataset, indexes, x_train, y_train,
+                 x_test,
                  y_test):
         self.id = server_id
         self.app = FastAPI()
@@ -204,5 +205,3 @@ class ServerSubGroup:
                 "message": MESSAGE_START_SECRET_SHARING,
             }
             self.send_to_node(data)
-
-
