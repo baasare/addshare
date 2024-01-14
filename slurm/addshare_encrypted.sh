@@ -5,7 +5,7 @@
 #SBATCH --account=def-pbranco
 #SBATCH --nodes=2
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=20G
+#SBATCH --mem=35G
 #SBATCH --time=0-10:00:00
 
 # Emails me when job starts, ends or fails

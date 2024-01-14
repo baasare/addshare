@@ -3,9 +3,9 @@
 # SLURM script for a job on Compute Canada cluster.
 # ---------------------------------------------------------------------
 #SBATCH --account=def-pbranco
-#SBATCH --nodes=5
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=35G
+#SBATCH --nodes=3
+#SBATCH --cpus-per-task=20
+#SBATCH --mem=25G
 #SBATCH --time=1-00:00:00
 
 # Emails me when job starts, ends or fails
@@ -27,6 +27,9 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare_server_group.py svhn 5
+python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server.py cifar-10 5
+python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server.py f-mnist 5
+python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server.py mnist 5
+python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server.py svhn 5
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: $(date)"
