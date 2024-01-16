@@ -3,16 +3,16 @@
 # SLURM script for a job on Compute Canada cluster.
 # ---------------------------------------------------------------------
 #SBATCH --account=def-pbranco
-#SBATCH --nodes=2
-#SBATCH --cpus-per-task=20
+#SBATCH --nodes=5
+#SBATCH --cpus-per-task=30
 #SBATCH --mem=35G
-#SBATCH --time=0-10:00:00
+#SBATCH --time=0-5:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=fed_avg
+#SBATCH --job-name=fed-avg
 #SBATCH --output=outputs/fed_avg_output_%j.out
 #SBATCH --error=errors/fed_avg_error_%j.out
 # ---------------------------------------------------------------------
