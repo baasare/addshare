@@ -27,9 +27,6 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare.py cifar-10
-python ~/projects/def-pbranco/baasare/thesis/addshare.py f-mnist
-python ~/projects/def-pbranco/baasare/thesis/addshare.py mnist
 python ~/projects/def-pbranco/baasare/thesis/addshare.py svhn
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: $(date)"
