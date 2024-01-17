@@ -186,7 +186,7 @@ class ServerSubGroup:
         pd.DataFrame(self.record).to_csv(csv_path, index=False, header=True)
 
         self.send_to_node(data)
-        combine_csv_files(f"{self.client_type}", f"{self.dataset}")
+        combine_csv_files(f"{self.client_type}_{self.group_size}", f"{self.dataset}")
         terminate_process_on_port(self.port)
 
     def start_assembly(self, port):
