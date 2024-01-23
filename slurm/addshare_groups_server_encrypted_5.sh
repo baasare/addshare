@@ -5,8 +5,8 @@
 #SBATCH --account=def-pbranco
 #SBATCH --nodes=3
 #SBATCH --cpus-per-task=20
-#SBATCH --mem=25G
-#SBATCH --time=1-00:00:00
+#SBATCH --mem=30G
+#SBATCH --time=5:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca
@@ -27,9 +27,6 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server_encrypted.py cifar-10 5
-python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server_encrypted.py f-mnist 5
-python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server_encrypted.py mnist 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_groups_server_encrypted.py svhn 5
 # ---------------------------------------------------------------------
 echo "Job finished with exit code $? at: $(date)"
