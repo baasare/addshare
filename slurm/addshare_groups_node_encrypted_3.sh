@@ -13,8 +13,8 @@
 #SBATCH --mail-type=ALL
 
 #SBATCH --job-name=addshare-node-group_encrypted-3-batch
-#SBATCH --output=outputs/output_addshare_node_encrypted_group_3_%j.out
-#SBATCH --error=errors/error_addshare_node_encrypted_group_3_%j.out
+#SBATCH --output=outputs/output_addshare_node_group_encrypted_3_%j.out
+#SBATCH --error=errors/error_addshare_node_group_encrypted_3_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"

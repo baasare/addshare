@@ -304,7 +304,6 @@ if __name__ == "__main__":
         server_id=SERVER_ID,
         address=ADDRESS,
         port=SERVER_PORT,
-        max_nodes=NODES,
         client_type='addshare_node_grouping_encrypted',
         group_size=GROUPINGS,
         dataset=DATASET,

@@ -27,7 +27,6 @@ echo ""
 module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
-python ~/projects/def-pbranco/baasare/thesis/addshare_groups_node.py cifar-10 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_groups_node.py f-mnist 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_groups_node.py mnist 5
 python ~/projects/def-pbranco/baasare/thesis/addshare_groups_node.py svhn 5
