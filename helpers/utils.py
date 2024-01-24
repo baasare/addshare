@@ -411,6 +411,35 @@ def convert(imgfile, labelfile, outfile, n):
     l.close()
 
 
+def f_to_i(x, scale=1 << 32):
+    if x < 0:
+        if pow(2, 64) - (abs(x) * scale) > (pow(2, 64) - 1):
+            return np.uint64(0)
+        x = pow(2, 64) - np.uint64(abs(x) * scale)
+    else:
+        x = np.uint64(scale * x)
+    return np.uint64(x)
+
+
+def i_to_f(x, scale=1 << 32):
+    l = 64
+    t = x > (pow(2, (l - 1)) - 1)
+    if t:
+        x = pow(2, l) - x
+        y = np.uint64(x)
+        y = np.float32(y * (-1)) / scale
+    else:
+        y = np.float32(np.uint64(x)) / scale
+    return y
+
+
+def generate_integer_additive_shares(value, n):
+    arr = np.asarray(value)
+    rand_arr = np.random.randint(1000, size=(n - 1,) + arr.shape)
+    shares = np.concatenate((rand_arr, [arr - rand_arr.sum(axis=0)]), axis=0)
+    return shares
+
+
 def generate_additive_shares(value, n):
     arr = np.asarray(value)
     rand_arr = np.random.uniform(low=-np.abs(arr), high=np.abs(arr), size=(n - 1,) + arr.shape)
@@ -588,7 +617,6 @@ class NumpyDecoder(json.JSONDecoder):
                 except:
                     pass
         return np.array(l, dtype=object)
-
 
 # if __name__ == "__main__":
 #     combine_find_mean("addshare_server_grouping_3", "svhn")

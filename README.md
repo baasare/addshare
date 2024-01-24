@@ -6,16 +6,16 @@
 3. Scotch
 4. FedShare
 5. AddShare - All ✅
-6. AddShare Encrypted - All ✅
+6. AddShare Encrypted - All 
 7. AddShare Server - G3 ✅
 8. AddShare Server - G5 ✅
 9. AddShare Server - G10 ✅
-10. AddShare Server Encrypted - G3 
-11. AddShare Server Encrypted - G5 
-12. AddShare Server Encrypted - G10 
-13. AddShare Client - G3 
-14. AddShare Client - G5 
-15. AddShare Client - G10
+10. AddShare Server Encrypted - G3 ✅  (svhn pending & deployed)
+11. AddShare Server Encrypted - G5 ✅  (svhn pending & deployed)
+12. AddShare Server Encrypted - G10 ✅ (svhn pending & deployed)
+13. AddShare Client - G3  ✅ (f-mnist, mnist & svhn pending)
+14. AddShare Client - G5  ✅ (f-mnist, mnist & svhn pending)
+15. AddShare Client - G10 ✅ (f-mnist, mnist & svhn pending)
 16. AddShare Client Encrypted - G3 
 17. AddShare Client Encrypted - G5 
 18. AddShare Client Encrypted - G10 
