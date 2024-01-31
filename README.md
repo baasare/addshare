@@ -10,19 +10,19 @@
 7. AddShare Server - G3 ✅
 8. AddShare Server - G5 ✅
 9. AddShare Server - G10 ✅
-10. AddShare Server Encrypted - G3 ✅  (svhn pending & deployed)
-11. AddShare Server Encrypted - G5 ✅  (svhn pending & deployed)
-12. AddShare Server Encrypted - G10 ✅ (svhn pending & deployed)
-13. AddShare Client - G3  ✅ (f-mnist, mnist & svhn pending)
-14. AddShare Client - G5  ✅ (f-mnist, mnist & svhn pending)
-15. AddShare Client - G10 ✅ (f-mnist, mnist & svhn pending)
-16. AddShare Client Encrypted - G3 
-17. AddShare Client Encrypted - G5 
-18. AddShare Client Encrypted - G10 
+10. AddShare Server Encrypted - G3 ✅  
+11. AddShare Server Encrypted - G5 ✅  
+12. AddShare Server Encrypted - G10 ✅
+13. AddShare Client - G3  ✅ 
+14. AddShare Client - G5  ✅ 
+15. AddShare Client - G10 ✅ 
+16. AddShare Client Encrypted - G3 🔄
+17. AddShare Client Encrypted - G5 🔄
+18. AddShare Client Encrypted - G10 🔄
 ***
 
 ### Alternatives
-1. AddShare+ (Random) - All 
+1. AddShare+ (Random) - All 🔄
 2. AddShare+ (Random) Encrypted(RSA) - All 
 3. AddShare+ (Random) Server - G3 
 4. AddShare+ (Random) Server - G5 
@@ -38,8 +38,8 @@
 14. AddShare+ (Random) Client Encrypted(RSA) - G10 
 
 
-15. AddShare+ (Random) Encrypted(Elliptical) - All 
-16. AddShare+ Magnitude - All 
-17. AddShare+ OBD - All 
-18. AddShare+ L1 - All 
-19. AddShare+ L2 - All 
+15. AddShare+ (Random) Encrypted(Elliptical) - All 🔄
+16. AddShare+ Magnitude - All 🔄
+17. AddShare+ OBD - All 🔄
+18. AddShare+ L1 - All 🔄
+19. AddShare+ L2 - All 🔄
