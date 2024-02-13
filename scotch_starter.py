@@ -10,8 +10,11 @@ from helpers.constants import ADDRESS, SERVER_PORT, NODES, CLIENT_PORT, SERVERS
 
 if __name__ == "__main__":
 
-    DATASET = "mnist"  # str(sys.argv[1])
+    DATASET = str(sys.argv[1])
+    SERVERS = int(sys.argv[2])
+
     print(f"DATASET: {DATASET}")
+    print(f"SERVERS: {SERVERS}")
 
     indexes = fetch_index(DATASET)
     (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
@@ -25,7 +28,7 @@ if __name__ == "__main__":
             address=ADDRESS,
             port=SERVER_PORT + i,
             max_nodes=NODES,
-            client_type='scotch',
+            client_type=f'scotch_{SERVERS}',
             dataset=DATASET,
             indexes=indexes,
             x_train=x_train,
@@ -50,7 +53,7 @@ if __name__ == "__main__":
         node = ScotchNode(
             address=ADDRESS,
             port=CLIENT_PORT + i,
-            client_type="scotch",
+            client_type=f"scotch_{SERVERS}",
             dataset=DATASET,
             x_train=X_train,
             y_train=Y_train,
