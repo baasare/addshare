@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 import scipy.io as sio
+from osgeo import gdal
 import tensorflow as tf
 from timeit import default_timer
 from urllib3.util.retry import Retry
@@ -134,7 +135,34 @@ def get_dataset(index, dataset, x_train, y_train, x_test, y_test):
     return x_train, y_train, x_test, y_test
 
 
-def get_lenet5(dataset):
+def get_area_x_dataset(field, month="june"):
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    yield_data_file = current_dir + f'/resources/dataset/area_x/field{field}/merged.csv'
+    yield_data = pd.read_csv(yield_data_file)
+    labels = yield_data['yield'].values
+    image_paths = yield_data[f'file_path'].tolist()
+
+    images = []
+    for path in image_paths:
+        img = tf.keras.preprocessing.image.load_img(path, target_size=(512, 512))
+        image = tf.keras.preprocessing.image.img_to_array(img) / 255.0
+        images.append(image)
+
+    x = np.array(images)
+    y = np.array(labels)
+
+    test_size = 0.3
+    num_test_images = int(len(x) * test_size)
+
+    x_train = x[:num_test_images]
+    y_train = y[:num_test_images]
+    x_test = x[num_test_images:]
+    y_test = y[num_test_images:]
+
+    return x_train, y_train, x_test, y_test
+
+
+def get_lenet5_classification(dataset):
     """
     Creates LeNet-5 model.
 
@@ -183,6 +211,50 @@ def get_lenet5(dataset):
 
     # Output layer
     model.add(tf.keras.layers.Dense(units=10, activation='softmax', name=f'dense_{2}'))
+    return model
+
+
+def get_lenet5_regression():
+    """
+    Creates LeNet-5 model.
+
+    :return: Keras model
+    """
+
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    seed = 1
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    # LeNet-5
+    model = tf.keras.models.Sequential()
+    # Convolutional layer 1
+    model.add(tf.keras.layers.Conv2D(
+        filters=6,
+        kernel_size=(5, 5),
+        strides=1,
+        activation='relu',
+        name=f'conv2d_{0}',
+        input_shape=(512, 512, 3)
+    ))
+    model.add(tf.keras.layers.AveragePooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # Convolutional layer 2
+    model.add(tf.keras.layers.Conv2D(filters=16, kernel_size=(5, 5), activation='relu', name=f'conv2d_{1}'))
+    model.add(tf.keras.layers.AveragePooling2D(pool_size=(2, 2), strides=(2, 2)))
+
+    # Flatten the output of the convolutional layers
+    model.add(tf.keras.layers.Flatten())
+
+    # Fully connected layer 1
+    model.add(tf.keras.layers.Dense(units=120, activation='relu', name=f'dense_{0}'))
+
+    # Fully connected layer 2
+    model.add(tf.keras.layers.Dense(units=84, activation='relu', name=f'dense_{1}'))
+
+    # Output layer
+    model.add(tf.keras.layers.Dense(units=1, activation='softmax', name=f'dense_{2}'))
     return model
 
 
@@ -618,7 +690,82 @@ class NumpyDecoder(json.JSONDecoder):
                     pass
         return np.array(l, dtype=object)
 
-# if __name__ == "__main__":
+
+def crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, tile_size=9):
+    """Crops tiles from a GeoTIFF based on coordinates and tile size from a CSV file.
+
+    Args:
+        input_file_path (str): Path to the GeoTIFF file.
+        output_file_path (str): Path to the tiles file.
+        yield_data_file (str): Path to the CSV file containing coordinates and yield data.
+        tile_size (int, optional): Size of the tiles to crop. Defaults to 9.
+    """
+
+    yield_data = pd.read_csv(yield_data_file)
+    yield_data["file_path"] = ""
+    for index, row in yield_data.iterrows():
+        center_x, center_y = row["X"], row["Y"]
+
+        # Calculate bounding box corners
+        upper_left_x = center_x - tile_size / 2.0
+        upper_left_y = center_y + tile_size / 2.0
+        lower_right_x = center_x + tile_size / 2.0
+        lower_right_y = center_y - tile_size / 2.0
+        window = (upper_left_x, upper_left_y, lower_right_x, lower_right_y)
+
+        # Output filename (optional)
+        os.makedirs(output_file_path, exist_ok=True)
+        output_file = f"{output_file_path}/{index}.jpeg"
+
+        # Assign the file path to the new column
+        yield_data.loc[index, "file_path"] = output_file
+
+        # Execute crop
+        gdal.Translate(output_file, input_file_path, projWin=window)
+
+    yield_data.to_csv(yield_data_file, index=False)
+
+
+def resize_images(source_path, destination_path, target_size=(512, 512)):
+    """Resizes images in a source directory to a target size and saves them in a destination directory.
+
+    Args:
+        source_path (str): Path to the directory containing the original images.
+        destination_path (str): Path to the directory where the resized images will be saved.
+        target_size (tuple, optional): Desired size of the resized images. Defaults to (224, 224).
+    """
+
+    os.makedirs(destination_path, exist_ok=True)
+
+    for filename in os.listdir(source_path):
+        if filename.lower().endswith((".jpg", ".jpeg", ".png")):
+            source_file = os.path.join(source_path, filename)
+            dest_file = os.path.join(destination_path, filename)
+
+            try:
+                with Image.open(source_file) as image:
+                    resized_image = image.resize(target_size)
+                    resized_image.save(dest_file)
+
+            except FileNotFoundError:
+                print(f"Error: Image file not found at {source_file}")
+            except Exception as e:
+                print(f"Error resizing image {filename}: {e}")
+
+
+if __name__ == "__main__":
+    for field in ["1", "2", "3", "4", "9", "11"]:
+        month = "june"
+        dataset_path = keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'dataset', 'area_x')
+        yield_data_file = dataset_path + f"/field{field}/merged.csv"
+        input_file_path = dataset_path + f"/field{field}/{month}.tif"
+        output_file_path = dataset_path + f"/field{field}/images/{month}"
+        crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file)
+
+        source_path = dataset_path + f"/field{field}/images/{month}"
+        destination_path = dataset_path + f"/field{field}/images_resized/{month}"
+        resize_images(source_path, destination_path)
+
 #     combine_find_mean("addshare_server_grouping_3", "svhn")
 #     keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'keys', 'elliptical')
 #     # generate encryption keys for all clients

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from timeit import default_timer as timer
 
 from helpers.utils import check_port, terminate_process_on_port, combine_csv_files
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_dataset
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5_classification, get_dataset
 
 from helpers.constants import MESSAGE_TRAINING_COMPLETED, MESSAGE_START_SECRET_SHARING
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
@@ -37,7 +37,7 @@ class ServerNodeSubGroup:
             y_test
         )
 
-        self.global_model = get_lenet5(dataset)
+        self.global_model = get_lenet5_classification(dataset)
         self.max_rounds = ROUNDS
         self.round = 0
         self.training_completed_count = 0

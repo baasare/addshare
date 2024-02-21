@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from timeit import default_timer as timer
 
 from helpers.utils import generate_groups, magnitude_weight_selection, regularization_weight_selection
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, obd_weight_selection
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5_classification, obd_weight_selection
 from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_find_mean, random_weight_selection
 
 from helpers import constants
@@ -39,7 +39,7 @@ class ServerAddsharePlusSubGroup:
             y_test
         )
 
-        self.global_model = get_lenet5(dataset)
+        self.global_model = get_lenet5_classification(dataset)
         self.max_rounds = constants.ROUNDS
         self.round = 0
         self.training_completed_count = 0

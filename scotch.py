@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from timeit import default_timer as timer
 
 from helpers.utils import post_with_retries, generate_additive_shares, TimingCallback, f_to_i, i_to_f
-from helpers.utils import check_port, terminate_process_on_port, decode_layer, encode_layer, get_lenet5
+from helpers.utils import check_port, terminate_process_on_port, decode_layer, encode_layer, get_lenet5_classification
 
 from helpers.constants import MESSAGE_MODEL_SHARE, MESSAGE_SCOTCH_SHARE
 from helpers.constants import EPOCHS, ADDRESS, ROUNDS, CLIENT_PORT, MESSAGE_START_ASSEMBLY
@@ -24,7 +24,7 @@ class ScotchNode:
         self.client_type = client_type
         self.optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.001)
 
-        self.model = get_lenet5(dataset)
+        self.model = get_lenet5_classification(dataset)
         self.epochs = EPOCHS
 
         self.scotch_servers = list()

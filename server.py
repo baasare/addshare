@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, get_private_key
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5_classification, get_private_key
 from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_csv_files, NumpyDecoder
 
 from helpers.constants import MESSAGE_END_SESSION, MESSAGE_START_ASSEMBLY, MESSAGE_FL_UPDATE
@@ -41,7 +41,7 @@ class Server:
             y_test
         )
 
-        self.global_model = get_lenet5(dataset)
+        self.global_model = get_lenet5_classification(dataset)
         self.max_rounds = ROUNDS
         self.round = 0
         self.training_completed_count = 0

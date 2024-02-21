@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 
 from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_find_mean
 from helpers.utils import random_weight_selection, magnitude_weight_selection, obd_weight_selection
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5, regularization_weight_selection
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5_classification, regularization_weight_selection
 
 from helpers import constants
 
@@ -38,7 +38,7 @@ class ServerAddsharePlus:
             y_test
         )
 
-        self.global_model = get_lenet5(dataset)
+        self.global_model = get_lenet5_classification(dataset)
         self.max_rounds = constants.ROUNDS
         self.round = 0
         self.training_completed_count = 0
