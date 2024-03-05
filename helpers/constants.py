@@ -27,9 +27,10 @@ L2R = "l2"
 
 SERVERS = 2
 NODES = 50
-ROUNDS = 10
+ROUNDS = 2
 EPOCHS = 2
-GROUPINGS = 3
+GROUPINGS = 2
 DATASET = 'mnist'
 DATASETS = ['cifar-10', 'f-mnist', 'mnist', 'svhn']
-FIELDS = ["1", "2", "3", "4", "9"]
+FIELDS = ["1", "2"]
+# FIELDS = ["1", "2", "3", "4", "9"]

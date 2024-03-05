@@ -8,13 +8,13 @@ from fastapi import FastAPI
 from timeit import default_timer as timer
 
 from helpers import constants
-from helpers.utils import check_port, terminate_process_on_port, get_dataset, combine_find_mean
-from helpers.utils import random_weight_selection, magnitude_weight_selection, obd_weight_selection
-from helpers.utils import post_with_retries, encode_layer, decode_layer, get_lenet5_classification, regularization_weight_selection
+from helpers.utils import generate_groups, magnitude_weight_selection, regularization_weight_selection
+from helpers.utils import check_port, terminate_process_on_port, combine_find_mean, random_weight_selection
+from helpers.utils import post_with_retries, encode_layer, decode_layer, get_regression_model, obd_weight_selection
 
 
-class ServerAddsharePlus:
-    def __init__(self, server_id, address, port, max_nodes, client_type, pruning_type, dataset, indexes, x_train, y_train, x_test, y_test):
+class AreaXAddsharePlusServerGroups:
+    def __init__(self, server_id, address, port, max_nodes, client_type, pruning_type, group_size, dataset, x, y):
         self.id = server_id
         self.app = FastAPI()
         self.port = port
@@ -23,30 +23,24 @@ class ServerAddsharePlus:
         self.max_nodes = max_nodes
         self.nodes = list()
 
+        self.grouping_time = None
         self.start_time = None
         self.end_time = None
         self.pending_nodes = set()
         self.average_weights = dict()
-        _, _, self.X_test, self.y_test = get_dataset(
-            indexes[0],
-            dataset,
-            x_train,
-            y_train,
-            x_test,
-            y_test
-        )
+        self.X, self.y = x, y
 
-        self.global_model = get_lenet5_classification(dataset)
+        self.global_model = get_regression_model()
         self.max_rounds = constants.ROUNDS
         self.round = 0
         self.training_completed_count = 0
         self.client_type = client_type
         self.pruning_type = pruning_type
+        self.group_size = group_size
         self.dataset = dataset
-
+        self.groupings = list()
         self.record = list()
-        self.current_accuracy = 0
-        self.threshold = 0
+        self.threshold, self.loss, self.rmse, self.mape = 0, 0, 0, 0
 
         @self.app.post("/message")
         def message(data: dict):
@@ -71,13 +65,25 @@ class ServerAddsharePlus:
 
     def send_to_node(self, data, port=None):
         if port is None:
-            for port in self.nodes:
-                post_with_retries(
-                    data=data,
-                    url=f"http://{constants.ADDRESS}:{port}/message",
-                    max_retries=3
-                )
-                time.sleep(2)
+            if data["message"] == constants.MESSAGE_START_TRAINING:
+                # if it's a start training message, then send ports to which the nodes belong to
+                for port in self.nodes:
+                    data["nodes"] = list(set(val for group in self.groupings if id in group for val in group))
+                    post_with_retries(
+                        data=data,
+                        url=f"http://{constants.ADDRESS}:{port}/message",
+                        max_retries=3
+                    )
+                    time.sleep(2)
+            else:
+                # if any other message proceed normally
+                for port in self.nodes:
+                    post_with_retries(
+                        data=data,
+                        url=f"http://{constants.ADDRESS}:{port}/message",
+                        max_retries=3
+                    )
+                    time.sleep(2)
         else:
             post_with_retries(
                 data=data,
@@ -90,6 +96,10 @@ class ServerAddsharePlus:
             self.nodes = nodes
 
         print(f'Starting round ({self.round + 1})')
+
+        temp_start_time = timer()
+        self.groupings = generate_groups(self.nodes, self.group_size)
+        self.grouping_time = temp_start_time - timer()
 
         indexes = {}
         self.start_time = timer()
@@ -107,15 +117,15 @@ class ServerAddsharePlus:
                 elif self.pruning_type == constants.OBD:
                     kernel_indices = obd_weight_selection(
                         self.global_model,
-                        self.X_test,
-                        self.y_test,
+                        self.X,
+                        self.y,
                         layer.trainable_weights[0],
                         constants.THRESHOLD
                     )
                     bias_indices = obd_weight_selection(
                         self.global_model,
-                        self.X_test,
-                        self.y_test,
+                        self.X,
+                        self.y,
                         layer.trainable_weights[1],
                         constants.THRESHOLD
                     )
@@ -123,16 +133,16 @@ class ServerAddsharePlus:
                 else:
                     kernel_indices = regularization_weight_selection(
                         self.global_model,
-                        self.X_test,
-                        self.y_test,
+                        self.X,
+                        self.y,
                         self.pruning_type,
                         layer.trainable_weights[0],
                         constants.THRESHOLD
                     )
                     bias_indices = regularization_weight_selection(
                         self.global_model,
-                        self.X_test,
-                        self.y_test,
+                        self.X,
+                        self.y,
                         self.pruning_type,
                         layer.trainable_weights[1],
                         constants.THRESHOLD
@@ -142,9 +152,8 @@ class ServerAddsharePlus:
 
         data = {
             "port": "SERVER",
-            "nodes": self.nodes,
-            "message": constants.MESSAGE_START_TRAINING,
             "indexes": json.dumps(indexes),
+            "message": constants.MESSAGE_START_TRAINING,
             "model_architecture": self.global_model.to_json(),
             "model_weights": encode_layer(self.global_model.get_weights()),
         }
@@ -173,17 +182,24 @@ class ServerAddsharePlus:
         self.evaluate()
 
     def evaluate(self):
-        self.global_model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
-                                  loss='categorical_crossentropy', metrics=['accuracy'])
-        _, self.current_accuracy = self.global_model.evaluate(self.X_test, self.y_test, verbose=0)
+        self.global_model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
+            loss=tf.keras.losses.mae,
+            metrics=[tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanAbsolutePercentageError()]
+        )
+        self.loss, self.rmse, self.mape = self.global_model.evaluate(self.X, self.y, verbose=0)
         self.end_time = timer() - self.start_time
-        print('Accuracy: ', self.current_accuracy)
+        print('Loss: ', self.loss)
+        print('Mean Squared Error: ', self.rmse)
+        print('Mean Absolute Percentage Error: ', self.mape)
         print(f'Round ({self.round + 1}) Time: {self.end_time}')
 
         self.record.append({
             'round': self.round + 1,
-            'accuracy': self.current_accuracy,
-            'fl': self.end_time,
+            'loss': self.loss,
+            'rmse': self.rmse,
+            'mape': self.mape,
+            'fl_time': self.end_time,
         })
         self.end_round()
 
@@ -204,14 +220,14 @@ class ServerAddsharePlus:
         }
 
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}/{self.dataset}"
+        output_folder = current_dir + f"/resources/results/{self.client_type}_{self.pruning_type}_{self.group_size}/{self.dataset}"
         os.makedirs(output_folder, exist_ok=True)
         csv_filename = 'server.csv'
         csv_path = os.path.join(output_folder, csv_filename)
         pd.DataFrame(self.record).to_csv(csv_path, index=False, header=True)
 
         self.send_to_node(data)
-        combine_find_mean(f"{self.client_type}_{self.pruning_type}", f"{self.dataset}")
+        combine_find_mean(f"{self.client_type}_{self.pruning_type}_{self.group_size}", f"{self.dataset}")
         terminate_process_on_port(self.port)
 
     def start_assembly(self, port):

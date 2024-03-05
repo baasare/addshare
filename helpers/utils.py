@@ -135,7 +135,7 @@ def get_dataset(index, dataset, x_train, y_train, x_test, y_test):
     return x_train, y_train, x_test, y_test
 
 
-def get_area_x_dataset(field, month="june"):
+def get_area_x_dataset(field):
     current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     yield_data_file = current_dir + f'/resources/dataset/area_x/field{field}/merged.csv'
     yield_data = pd.read_csv(yield_data_file)
@@ -159,7 +159,10 @@ def get_area_x_dataset(field, month="june"):
     x_test = x[num_test_images:]
     y_test = y[num_test_images:]
 
-    return x_train, y_train, x_test, y_test
+    if field == 9:
+        return x, y
+    else:
+        return x_train, y_train, x_test, y_test
 
 
 def get_lenet5_classification(dataset):
@@ -255,6 +258,37 @@ def get_lenet5_regression():
 
     # Output layer
     model.add(tf.keras.layers.Dense(units=1, activation='softmax', name=f'dense_{2}'))
+    return model
+
+
+def get_regression_model():
+    """
+    :return: Keras model
+    """
+
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+    seed = 1
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+
+    model = tf.keras.Sequential()
+    model.add(tf.keras.layers.Conv2D(
+        filters=64,
+        kernel_size=(3, 3),
+        activation='relu',
+        name=f'conv2d_{0}',
+        input_shape=(512, 512, 3))
+    )
+    model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+    model.add(tf.keras.layers.Dropout(0.2))
+    model.add(tf.keras.layers.Conv2D(filters=8, kernel_size=(3, 3), activation='relu', name=f'conv2d_{1}'))
+    model.add(tf.keras.layers.MaxPooling2D(pool_size=(2, 2)))
+    model.add(tf.keras.layers.Flatten())
+    model.add(tf.keras.layers.Dense(units=128, activation='relu', name=f'dense_{0}'))
+    model.add(tf.keras.layers.Dense(units=32, activation='relu', name=f'dense_{1}'))
+    model.add(tf.keras.layers.Dense(units=1, name=f'dense_{2}'))
+
     return model
 
 
@@ -607,6 +641,26 @@ def combine_find_mean(experiment, dataset):
     if os.path.exists(csv_dir):
         df = pd.read_csv(csv_dir)
         df['Average Accuracy'] = df.apply(lambda row: row['accuracy'].mean(), axis=1)
+        df['Average Training'] = df.apply(lambda row: row['training'].mean(), axis=1)
+        if 'secret_sharing' in df:
+            df['Average Secret Sharing'] = df.apply(lambda row: row['secret_sharing'].mean(), axis=1)
+        df.columns = df.columns.str.replace(r'\.\d+$', '', regex=True)
+        df.to_csv(csv_dir, index=False)
+
+
+def combine_find_mean_regression(experiment, dataset):
+    parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    folder_path = parent_dir + f'/resources/results/{experiment}/{dataset}'
+
+    combine_csv_files(experiment, dataset)
+
+    csv_dir = os.path.join(folder_path, 'combined.csv')
+
+    if os.path.exists(csv_dir):
+        df = pd.read_csv(csv_dir)
+        df['Average Loss'] = df.apply(lambda row: row['loss'].mean(), axis=1)
+        df['Average RMSE'] = df.apply(lambda row: row['rmse'].mean(), axis=1)
+        df['Average MAPE'] = df.apply(lambda row: row['mape'].mean(), axis=1)
         df['Average Training'] = df.apply(lambda row: row['training'].mean(), axis=1)
         if 'secret_sharing' in df:
             df['Average Secret Sharing'] = df.apply(lambda row: row['secret_sharing'].mean(), axis=1)

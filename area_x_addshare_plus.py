@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 import json
 import uvicorn
@@ -9,18 +8,14 @@ import pandas as pd
 import tensorflow as tf
 from fastapi import FastAPI
 from timeit import default_timer as timer
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
 
 from helpers import constants
-from server_addshare_plus import ServerAddsharePlus
-from helpers.utils import decrypt_message_elliptical, encrypt_message_elliptical
-from helpers.utils import NumpyEncoder, get_public_key, get_private_key, NumpyDecoder
-from helpers.utils import check_port, terminate_process_on_port, decode_layer, TimingCallback, encode_layer
-from helpers.utils import fetch_dataset, fetch_index, get_dataset, post_with_retries, generate_additive_shares
+from area_x_server import AreaXAddsharePlusServer
+from helpers.utils import generate_additive_shares, post_with_retries, get_area_x_dataset
+from helpers.utils import check_port, terminate_process_on_port, TimingCallback, encode_layer, decode_layer
 
 
-class AddSharePlusNode:
+class AreaXAddSharePlusNode:
 
     def __init__(self, address, port, client_type, pruning_type, dataset, x_train, y_train, x_test, y_test):
         self.app = FastAPI()
@@ -43,15 +38,10 @@ class AddSharePlusNode:
 
         self.start_time = None
         self.secret_sharing_time = 0.0
-
-        self.record = list()
-
-        self.round = 0
-        self.current_accuracy = 0
         self.current_training_time = 0
 
-        self.private_key = get_private_key(self.port - constants.CLIENT_PORT, 'elliptical')
-
+        self.record = list()
+        self.round, self.mae, self.rmse, self.mape = 0, 0, 0, 0
         self.X_train, self.y_train, self.X_test, self.y_test = x_train, y_train, x_test, y_test
 
         @self.app.post("/message")
@@ -67,7 +57,7 @@ class AddSharePlusNode:
                 self.end_session(data)
 
             elif data["message"] == constants.MESSAGE_MODEL_SHARE:
-                self.accept_shares(data['model_share'], data['ephemeral_public_key'])
+                self.accept_shares(data['model_share'])
 
             elif data["message"] == constants.MESSAGE_START_ASSEMBLY:
                 self.reassemble_shares()
@@ -89,20 +79,20 @@ class AddSharePlusNode:
         )
 
     def start_training(self, data):
-
         self.fl_nodes = [port for port in data["nodes"] if port != self.port]
         self.indexes = json.loads(data["indexes"])
         self.round += 1
         self.model = tf.keras.models.model_from_json(data["model_architecture"])
-        self.model.compile(optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
-                           loss='categorical_crossentropy',
-                           metrics=['accuracy'])
+        self.model.compile(
+            optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
+            loss=tf.keras.losses.mae,
+            metrics=[tf.keras.metrics.RootMeanSquaredError(), tf.keras.metrics.MeanAbsolutePercentageError()]
+        )
         self.model.set_weights(decode_layer(data["model_weights"]))
 
         cb = TimingCallback()
-
         self.model.fit(self.X_train, self.y_train, epochs=self.epochs, batch_size=10, callbacks=[cb], verbose=False)
-        _, self.current_accuracy = self.model.evaluate(self.X_test, self.y_test, verbose=0)
+        self.mae, self.rmse, self.mape = self.model.evaluate(self.X_test, self.y_test, verbose=0)
         self.current_training_time = sum(cb.logs)
 
         for layer in self.model.layers:
@@ -132,8 +122,8 @@ class AddSharePlusNode:
                 selected_bias = layer.get_weights()[1][selected_bias_index]
 
                 # generate additive shares of selected weights
-                weight_shares = list(generate_additive_shares(selected_kernels, constants.NODES))
-                bias_shares = list(generate_additive_shares(selected_bias, constants.NODES))
+                weight_shares = list(generate_additive_shares(selected_kernels, NODES))
+                bias_shares = list(generate_additive_shares(selected_bias, NODES))
 
                 self.own_shares[layer.name] = [[], []]
                 self.own_shares[layer.name][0].append(weight_shares.pop())
@@ -151,7 +141,6 @@ class AddSharePlusNode:
     def start_exchanging_shares(self):
         self.start_time = timer()
         for client in self.fl_nodes:
-            public_key = get_public_key(client - constants.CLIENT_PORT, 'elliptical')
             layer_weights = dict()
 
             for layer in self.other_shares.keys():
@@ -159,22 +148,12 @@ class AddSharePlusNode:
                 weight_bias[0] = self.other_shares[layer][0].pop()
                 weight_bias[1] = self.other_shares[layer][1].pop()
 
-                layer_weights[layer] = weight_bias
-
-            # start encryption here
-            json_str = json.dumps(layer_weights, cls=NumpyEncoder)
-
-            ephemeral_public_key, encrypted_messages = encrypt_message_elliptical(json_str, public_key)
-            ephemeral_public_key_pem = ephemeral_public_key.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
-            )
+                layer_weights[layer] = encode_layer(weight_bias)
 
             data = {
                 "port": self.port,
                 "message": constants.MESSAGE_MODEL_SHARE,
-                "model_share": encode_layer(encrypted_messages),
-                "ephemeral_public_key": encode_layer(ephemeral_public_key_pem),
+                "model_share": layer_weights,
             }
 
             self.send_to_node(data=data, address=constants.ADDRESS, port=client)
@@ -189,19 +168,11 @@ class AddSharePlusNode:
             }
             self.send_to_node(data=data, address=constants.ADDRESS, port=constants.SERVER_PORT)
 
-    def accept_shares(self, data, ephemeral_public_key):
+    def accept_shares(self, data):
+
         self.start_time = timer()
-
-        encrypted_messages = decode_layer(data)
-        ephemeral_public_key_pem = decode_layer(ephemeral_public_key)
-        public_key = serialization.load_pem_public_key(ephemeral_public_key_pem, backend=default_backend())
-
-        decrypted_message = decrypt_message_elliptical(encrypted_messages, public_key, self.private_key)
-
-        data = json.loads(decrypted_message, cls=NumpyDecoder)
-
         for layer in data.keys():
-            weight_bias = data[layer]
+            weight_bias = decode_layer(data[layer])
             self.own_shares[layer][0].append(weight_bias[0])
             self.own_shares[layer][1].append(weight_bias[1])
 
@@ -243,7 +214,9 @@ class AddSharePlusNode:
 
         self.record.append({
             'round': self.round,
-            'accuracy': self.current_accuracy,
+            'loss': self.mae,
+            'rmse': self.rmse,
+            'mape': self.mape,
             'training': self.current_training_time,
             'secret_sharing': self.secret_sharing_time
         })
@@ -254,26 +227,6 @@ class AddSharePlusNode:
             "model_weights": layer_weights,
         }
         self.send_to_node(address=constants.ADDRESS, port=constants.SERVER_PORT, data=data)
-
-    def send_updates(self):
-        model_weights = dict()
-        for layer in self.model.layers:
-            if layer.trainable_weights:
-                model_weights[layer.name] = encode_layer(layer.get_weights())
-
-        self.record.append({
-            'round': self.round,
-            'accuracy': self.current_accuracy,
-            'training': self.current_training_time,
-        })
-
-        data = {
-            "port": self.port,
-            "message": constants.MESSAGE_FL_UPDATE,
-            "model_weights": model_weights,
-        }
-
-        self.send_to_node(constants.ADDRESS, constants.SERVER_PORT, data)
 
     def end_session(self, data):
         model_weights = decode_layer(data['model_weights'])
@@ -290,48 +243,37 @@ class AddSharePlusNode:
 
 
 if __name__ == "__main__":
-
-    DATASET = str(sys.argv[1])
-    SELECTION_TYPE = str(sys.argv[2])
+    NODES = len(constants.FIELDS)
+    DATASET = "area_x"  # str(sys.argv[1])
+    SELECTION_TYPE = "magnitude"  # str(sys.argv[2])
     print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}")
 
-    indexes = fetch_index(DATASET)
-    (x_train, y_train), (x_test, y_test) = fetch_dataset(DATASET)
+    x_train, y_train, x_test, y_test = get_area_x_dataset(3)
 
     nodes = []
     ports = []
     threads = []
 
-    server = ServerAddsharePlus(
+    server = AreaXAddsharePlusServer(
         server_id=constants.SERVER_ID,
         address=constants.ADDRESS,
         port=constants.SERVER_PORT,
-        max_nodes=constants.NODES,
-        client_type='addshare_plus_elliptical',
+        max_nodes=NODES,
+        client_type='addshare_plus',
         pruning_type=SELECTION_TYPE,
         dataset=DATASET,
-        indexes=indexes,
-        x_train=x_train,
-        y_train=y_train,
-        x_test=x_test,
-        y_test=y_test
+        x=x_train,
+        y=y_train
     )
     server_thread = threading.Thread(target=server.start)
 
-    for i in range(1, constants.NODES + 1):
-        X_train, Y_train, X_test, Y_test = get_dataset(
-            indexes[i - 1],
-            DATASET,
-            x_train,
-            y_train,
-            x_test,
-            y_test
-        )
+    for i in constants.FIELDS:
+        X_train, Y_train, X_test, Y_test = get_area_x_dataset(i)
 
-        node = AddSharePlusNode(
+        node = AreaXAddSharePlusNode(
             address=constants.ADDRESS,
-            port=constants.CLIENT_PORT + i,
-            client_type="addshare_plus_elliptical",
+            port=constants.CLIENT_PORT + int(i),
+            client_type="addshare_plus",
             pruning_type=SELECTION_TYPE,
             dataset=DATASET,
             x_train=X_train,
@@ -339,7 +281,7 @@ if __name__ == "__main__":
             x_test=X_test,
             y_test=Y_test
         )
-        ports.append(constants.CLIENT_PORT + i)
+        ports.append(constants.CLIENT_PORT + int(i))
         nodes.append(node)
 
     server_thread.start()
