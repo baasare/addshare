@@ -163,3 +163,5 @@ cython_debug/
 *.mat
 *.jpeg
 *.aux.xml
+*.zip
+*.tif
