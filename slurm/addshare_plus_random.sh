@@ -12,7 +12,7 @@
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare_plus_random
+#SBATCH --job-name=random
 #SBATCH --output=outputs/random_output_%j.out
 #SBATCH --error=errors/random_error_%j.out
 # ---------------------------------------------------------------------

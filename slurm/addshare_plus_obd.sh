@@ -12,7 +12,7 @@
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare_plus_magnitude
+#SBATCH --job-name=obd
 #SBATCH --output=outputs/obd_output_%j.out
 #SBATCH --error=errors/obd_error_%j.out
 # ---------------------------------------------------------------------
