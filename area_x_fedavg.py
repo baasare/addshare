@@ -112,7 +112,7 @@ if __name__ == "__main__":
     DATASET = "area_x"  # str(sys.argv[1])
     print(f"DATASET: {DATASET}")
 
-    x_train, y_train, x_test, y_test = get_area_x_dataset(3)
+    x, y, _, _ = get_area_x_dataset(9)
 
     nodes = []
     ports = []
@@ -126,8 +126,8 @@ if __name__ == "__main__":
         pruning_type=None,
         client_type='fed_avg',
         dataset=DATASET,
-        x=x_train,
-        y=y_train
+        x=x,
+        y=y
     )
     server_thread = threading.Thread(target=server.start)
 

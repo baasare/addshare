@@ -272,11 +272,11 @@ class AreaXAddSharePlusGroupNode:
 if __name__ == "__main__":
     NODES = len(constants.FIELDS)
     DATASET = "area_x"  # str(sys.argv[1])
-    SELECTION_TYPE = "magnitude"  # str(sys.argv[2])
+    SELECTION_TYPE = constants.MAGNITUDE  # str(sys.argv[2])
     GROUPINGS = 2  # int(sys.argv[3])
     print(f"DATASET: {DATASET}, SELECTION TYPE: {SELECTION_TYPE}, GROUP: {GROUPINGS}")
 
-    x_train, y_train, x_test, y_test = get_area_x_dataset(3)
+    x, y, _, _ = get_area_x_dataset(9)
 
     nodes = []
     ports = []
@@ -291,8 +291,8 @@ if __name__ == "__main__":
         pruning_type=SELECTION_TYPE,
         group_size=GROUPINGS,
         dataset=DATASET,
-        x=x_train,
-        y=y_train
+        x=x,
+        y=y
     )
     server_thread = threading.Thread(target=server.start)
 

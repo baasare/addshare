@@ -13,8 +13,8 @@
 #SBATCH --mail-type=ALL
 
 #SBATCH --job-name=addshare_plus_random
-#SBATCH --output=outputs/addshare_plus_random_output_%j.out
-#SBATCH --error=errors/addshare_plus_random_error_%j.out
+#SBATCH --output=outputs/random_output_%j.out
+#SBATCH --error=errors/random_error_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"

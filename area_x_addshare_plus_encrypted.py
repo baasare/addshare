@@ -270,8 +270,8 @@ class AreaXAddSharePlusNode:
 if __name__ == "__main__":
     NODES = len(constants.FIELDS)
     DATASET = "area_x"
-    SELECTION_TYPE = "magnitude"
-    x_train, y_train, x_test, y_test = get_area_x_dataset(3)
+    SELECTION_TYPE = constants.MAGNITUDE
+    x, y, _, _ = get_area_x_dataset(9)
 
     nodes = []
     ports = []
@@ -285,8 +285,8 @@ if __name__ == "__main__":
         client_type='addshare_plus_elliptical',
         pruning_type=SELECTION_TYPE,
         dataset=DATASET,
-        x=x_train,
-        y=y_train
+        x=x,
+        y=y
     )
     server_thread = threading.Thread(target=server.start)
 

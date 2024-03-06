@@ -135,36 +135,6 @@ def get_dataset(index, dataset, x_train, y_train, x_test, y_test):
     return x_train, y_train, x_test, y_test
 
 
-def get_area_x_dataset(field):
-    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    yield_data_file = current_dir + f'/resources/dataset/area_x/field{field}/merged.csv'
-    yield_data = pd.read_csv(yield_data_file)
-    labels = yield_data['yield'].values
-    image_paths = yield_data[f'file_path'].tolist()
-
-    images = []
-    for path in image_paths:
-        img = tf.keras.preprocessing.image.load_img(path, target_size=(512, 512))
-        image = tf.keras.preprocessing.image.img_to_array(img) / 255.0
-        images.append(image)
-
-    x = np.array(images)
-    y = np.array(labels)
-
-    test_size = 0.3
-    num_test_images = int(len(x) * test_size)
-
-    x_train = x[:num_test_images]
-    y_train = y[:num_test_images]
-    x_test = x[num_test_images:]
-    y_test = y[num_test_images:]
-
-    if field == 9:
-        return x, y
-    else:
-        return x_train, y_train, x_test, y_test
-
-
 def get_lenet5_classification(dataset):
     """
     Creates LeNet-5 model.
@@ -745,7 +715,7 @@ class NumpyDecoder(json.JSONDecoder):
         return np.array(l, dtype=object)
 
 
-def crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, tile_size=9):
+def crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, data_type, tile_size=9):
     """Crops tiles from a GeoTIFF based on coordinates and tile size from a CSV file.
 
     Args:
@@ -753,10 +723,11 @@ def crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, 
         output_file_path (str): Path to the tiles file.
         yield_data_file (str): Path to the CSV file containing coordinates and yield data.
         tile_size (int, optional): Size of the tiles to crop. Defaults to 9.
+        data_type (str): whether train and test.
     """
 
     yield_data = pd.read_csv(yield_data_file)
-    yield_data["file_path"] = ""
+    yield_data[f"{data_type}_file_path"] = ""
     for index, row in yield_data.iterrows():
         center_x, center_y = row["X"], row["Y"]
 
@@ -772,7 +743,7 @@ def crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, 
         output_file = f"{output_file_path}/{index}.jpeg"
 
         # Assign the file path to the new column
-        yield_data.loc[index, "file_path"] = output_file
+        yield_data.loc[index, f"{data_type}_file_path"] = output_file
 
         # Execute crop
         gdal.Translate(output_file, input_file_path, projWin=window)
@@ -807,18 +778,39 @@ def resize_images(source_path, destination_path, target_size=(512, 512)):
                 print(f"Error resizing image {filename}: {e}")
 
 
+def get_area_x_dataset(field):
+    current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    yield_data_file = os.path.join(current_dir, f'resources/dataset/area_x/field{field}/merged.csv')
+    yield_data = pd.read_csv(yield_data_file)
+
+    labels = yield_data['yield'].values
+
+    x_train = np.array([load_and_preprocess_image(path, (512, 512)) for path in yield_data['train_file_path'].tolist()])
+    x_test = np.array([load_and_preprocess_image(path, (512, 512)) for path in yield_data['test_file_path'].tolist()])
+    y_train, y_test = labels, labels
+
+    return x_train, y_train, x_test, y_test
+
+
+def load_and_preprocess_image(image_path, target_size):
+    img = tf.keras.preprocessing.image.load_img(image_path, target_size=target_size)
+    img_array = tf.keras.preprocessing.image.img_to_array(img) / 255.0
+    return img_array
+
+
 if __name__ == "__main__":
-    for field in ["1", "2", "3", "4", "9", "11"]:
-        month = "june"
+    for field in ["1", "2"]:
+        month = "july"
+        data_type = "train"
         dataset_path = keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'dataset', 'area_x')
         yield_data_file = dataset_path + f"/field{field}/merged.csv"
         input_file_path = dataset_path + f"/field{field}/{month}.tif"
         output_file_path = dataset_path + f"/field{field}/images/{month}"
-        crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file)
+        crop_tiles_from_geotiff(input_file_path, output_file_path, yield_data_file, data_type)
 
         source_path = dataset_path + f"/field{field}/images/{month}"
         destination_path = dataset_path + f"/field{field}/images_resized/{month}"
-        resize_images(source_path, destination_path)
+        resize_images(source_path, source_path)
 
 #     combine_find_mean("addshare_server_grouping_3", "svhn")
 #     keys_path = os.path.join(os.path.dirname(os.getcwd()), 'resources', 'keys', 'elliptical')

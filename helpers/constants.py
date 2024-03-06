@@ -33,4 +33,3 @@ GROUPINGS = 2
 DATASET = 'mnist'
 DATASETS = ['cifar-10', 'f-mnist', 'mnist', 'svhn']
 FIELDS = ["1", "2"]
-# FIELDS = ["1", "2", "3", "4", "9"]

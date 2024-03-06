@@ -12,9 +12,9 @@
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare_plus_magnitude
-#SBATCH --output=outputs/addshare_plus_magnitude_output_%j.out
-#SBATCH --error=errors/addshare_plus_magnitude_error_%j.out
+#SBATCH --job-name=magnitude
+#SBATCH --output=outputs/magnitude_output_%j.out
+#SBATCH --error=errors/magnitude_error_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"

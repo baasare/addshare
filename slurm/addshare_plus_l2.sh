@@ -6,15 +6,15 @@
 #SBATCH --nodes=5
 #SBATCH --cpus-per-task=30
 #SBATCH --mem=35G
-#SBATCH --time=7:00:00
+#SBATCH --time=10:00:00
 
 # Emails me when job starts, ends or fails
 #SBATCH --mail-user=basar092@uottawa.ca
 #SBATCH --mail-type=ALL
 
-#SBATCH --job-name=addshare_plus_magnitude
-#SBATCH --output=outputs/addshare_plus_magnitude_output_%j.out
-#SBATCH --error=errors/addshare_plus_magnitude_error_%j.out
+#SBATCH --job-name=l2
+#SBATCH --output=outputs/l2_output_%j.out
+#SBATCH --error=errors/l2_error_%j.out
 # ---------------------------------------------------------------------
 echo "Current working directory: $(pwd)"
 echo "Starting run at: $(date)"
