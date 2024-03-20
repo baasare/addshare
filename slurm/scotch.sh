@@ -28,22 +28,22 @@ module load python/3.9.6
 source ~/projects/def-pbranco/baasare/thesis/venv/bin/activate
 
 # Run the Python script
-python ~/Desktop/Projects/thesis/scotch_starter.py cifar-10 2
-python ~/Desktop/Projects/thesis/scotch_starter.py f-mnist 2
-python ~/Desktop/Projects/thesis/scotch_starter.py mnist 2
-python ~/Desktop/Projects/thesis/scotch_starter.py svhn 2
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py cifar-10 2
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py f-mnist 2
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py mnist 2
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py svhn 2
 
 
-python ~/Desktop/Projects/thesis/scotch_starter.py cifar-10 3
-python ~/Desktop/Projects/thesis/scotch_starter.py f-mnist 3
-python ~/Desktop/Projects/thesis/scotch_starter.py mnist 3
-python ~/Desktop/Projects/thesis/scotch_starter.py svhn 3
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py cifar-10 3
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py f-mnist 3
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py mnist 3
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py svhn 3
 
 
-python ~/Desktop/Projects/thesis/scotch_starter.py cifar-10 5
-python ~/Desktop/Projects/thesis/scotch_starter.py f-mnist 5
-python ~/Desktop/Projects/thesis/scotch_starter.py mnist 5
-python ~/Desktop/Projects/thesis/scotch_starter.py svhn 5
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py cifar-10 5
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py f-mnist 5
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py mnist 5
+python ~/projects/def-pbranco/baasare/thesis/scotch_starter.py svhn 5
 
 # Print job finish time and exit code
 echo "Job finished with exit code $? at: $(date)"
